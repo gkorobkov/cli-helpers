@@ -3,6 +3,7 @@
 set sub_path=%1
 if not defined sub_path set sub_path=%cd% 
 if not exist %sub_path% goto noFolder
+cd %sub_path%
 
 set branch_name=%2
 if defined branch_name goto gitUpdate
@@ -10,21 +11,19 @@ FOR /F "tokens=*" %%a in ('git-branch-name.cmd') do SET branch_name=%%a
 
 :gitUpdate
 
-echo  Running git update for the branch '%branch_name%' in the folder '%sub_path%'
-title  Running git update for the branch '%branch_name%' in the folder '%sub_path%'
+echo.       
+echo ********************************************************************************
+echo * Running git update. Branch '%branch_name%'. Folder '%sub_path%'
+echo ********************************************************************************
+title  Running git update. Branch '%branch_name%'. Folder '%sub_path%'
 
 pushd . && (
 
-cd %sub_path% ) && (
-echo.       
-echo ********************
-echo * Folder: %sub_path%  
-echo ********************
-echo "Auto stash on %date%_%time%"
+echo "Auto stash on %date%_%time%" 
  git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
 ) && (
 
-title UPDATING %sub_path% %branch_name%
+rem title UPDATING %sub_path% %branch_name%
 echo.
 echo ********************
 echo *  UPDATING %sub_path% %branch_name%  
@@ -57,8 +56,14 @@ echo *******************
 
 call git status -s  ) && (
   
-ECHO %sub_path% %branch_name% UPDATE FINISHED %build-after-update%
-title %sub_path% %branch_name% UPDATE FINISHED) && (
+
+echo.       
+echo ********************************************************************************
+echo * UPDATE FINISHED. Branch '%branch_name%'. Folder '%sub_path%'
+echo ********************************************************************************
+title UPDATE FINISHED. Branch '%branch_name%'. Folder '%sub_path%'
+
+) && (
   if "%build-after-update%" equ "true" (
     ECHO %sub_path% %branch_name% BUILDING  
     title %sub_path% %branch_name% BUILDING
