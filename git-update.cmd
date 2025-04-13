@@ -13,9 +13,9 @@ FOR /F "tokens=*" %%a in ('git-branch-name.cmd') do SET branch_name=%%a
 
 echo.       
 echo ********************************************************************************
-echo * Running git update. Branch: '%branch_name%'. Folder: '%sub_path%'
+echo * Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  Running git update. Branch: '%branch_name%'. Folder: '%sub_path%'
+title  Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 
 pushd . && (
 
