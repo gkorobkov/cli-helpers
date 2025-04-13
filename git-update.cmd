@@ -13,9 +13,9 @@ FOR /F "tokens=*" %%a in ('git-branch-name.cmd') do SET branch_name=%%a
 
 echo.       
 echo ********************************************************************************
-echo * Running git update. Branch '%branch_name%'. Folder '%sub_path%'
+echo * Running git update. Branch: '%branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  Running git update. Branch '%branch_name%'. Folder '%sub_path%'
+title  Running git update. Branch: '%branch_name%'. Folder: '%sub_path%'
 
 pushd . && (
 
@@ -25,9 +25,6 @@ echo "Auto stash on %date%_%time%"
 
 rem title UPDATING %sub_path% %branch_name%
 echo.
-echo ********************
-echo *  UPDATING %sub_path% %branch_name%  
-echo *********************
 echo *********************
 echo *  git fetch  %branch_name% 
 echo *********************
@@ -59,9 +56,9 @@ call git status -s  ) && (
 
 echo.       
 echo ********************************************************************************
-echo * UPDATE FINISHED. Branch '%branch_name%'. Folder '%sub_path%'
+echo * UPDATE FINISHED. Branch: '%branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title UPDATE FINISHED. Branch '%branch_name%'. Folder '%sub_path%'
+title UPDATE FINISHED. Branch: '%branch_name%'. Folder: '%sub_path%'
 
 ) && (
   if "%build-after-update%" equ "true" (
