@@ -26,7 +26,7 @@ echo "Auto stash on %date%_%time%"
 rem title UPDATING %sub_path% %branch_name%
 echo.
 echo *********************
-echo *  git fetch  %branch_name% 
+echo *  git fetch origin  %branch_name% 
 echo *********************
 
 call git fetch origin  %branch_name% ) && (
