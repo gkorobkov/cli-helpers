@@ -99,7 +99,7 @@ goto noArgs
 :noArgs
   echo This cmd is used to update git branch to the latest.
   echo [Optional] The first parameter is the subfolder name where the branch is being updated. If parameter is missing then current folder is used.
-  echo [Optional] The second parameter is the branch name. If parameter is missing then brach is used.
+  echo [Optional] The second parameter is the branch name. If parameter is missing then current local branch is used.
   echo Usage:
   echo   git-update.cmd   
   echo or
