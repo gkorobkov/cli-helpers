@@ -8,9 +8,12 @@ echo ==============
 echo.
 
 REM Get list of stashes
+git stash list
 for /f "tokens=1 delims=:" %%i in ('git stash list') do (
     echo === %%i ===
-    git stash show  %%i
+    git stash show  %%i 
+    echo.
+    rem TO DO: add simple output for the stash
     echo.
 )
 
