@@ -35,9 +35,11 @@ for /d %%d in ("!current_path!\*") do (
 
     if exist "%%d\!search_folder!" (
         echo.
-        echo ***** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *****
-        echo * Found "%search_folder%" folder in: %%d
-        echo *****!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! *****
+        setlocal disabledelayedexpansion
+        echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        echo  Found "%search_folder%" folder in: %%d 
+        echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        setlocal enabledelayedexpansion
         call git-update.cmd %%d
 
     ) else (
