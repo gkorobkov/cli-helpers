@@ -4,17 +4,21 @@ REM Usage: find-123-folder.cmd [folder_path] [folder_name]
 REM If no path is provided, uses current directory
 REM If no folder_name is provided, uses ".git"
 
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
 
-set "search_path=%~1"
-if "%search_path%"=="" set "search_path=%cd%"
+set "run_command=%~1"
+if "%run_command%"=="" set "run_command=git -C ""%%path_to_git_folder%%"" status -s -b -v"
 
-echo search_path: !search_path!
+echo run_command: !run_command!
 
 set "search_folder=%~2"
-if "%search_folder%"=="" set "search_folder=.git"
+if "%search_path%"=="" set "search_path=%cd%"
+echo search_path: !search_path!
 
+set "search_folder=%~3"
+if "%search_folder%"=="" set "search_folder=.git"
 echo search_folder: !search_folder!
+
 
 echo.
 
@@ -35,13 +39,15 @@ for /d %%d in ("!current_path!\*") do (
 
     if exist "%%d\!search_folder!" (
         echo.
-        setlocal disabledelayedexpansion
-        echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        echo  Found "%search_folder%" folder in: %%d 
-        echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        setlocal enabledelayedexpansion
-        call git-update.cmd %%d
-
+        rem setlocal disabledelayedexpansion
+        echo *************************************************************
+        echo * Found "%search_folder%" folder in: %%d 
+        echo *************************************************************
+        setlocal EnableDelayedExpansion
+        echo Running: 
+        echo call !run_command:%%path_to_git_folder%%=%%d! 
+        call !run_command:%%path_to_git_folder%%=%%d!
+        
     ) else (
         rem echo Run recursive searching in subfolders of: "%%d"
         call :search_folders "%%d"
