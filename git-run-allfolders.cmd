@@ -11,7 +11,7 @@ if "%run_command%"=="" set "run_command=git -C ""%%path_to_git_folder%%"" status
 
 echo run_command: !run_command!
 
-set "search_folder=%~2"
+set "search_path=%~2"
 if "%search_path%"=="" set "search_path=%cd%"
 echo search_path: !search_path!
 
@@ -32,30 +32,20 @@ exit /b
 :search_folders
 set "current_path=%~1"
 
-for /d %%d in ("!current_path!\*") do (
-    rem echo Checking folder: %%d
-    rem set "folder_name=%%~nxd"
-    rem echo folder_name: !folder_name!
-
-    if exist "%%d\!search_folder!" (
-        echo.
-        rem setlocal disabledelayedexpansion
-        echo *************************************************************
-        echo * Found "%search_folder%" folder in: %%d 
-        echo *************************************************************
-        setlocal EnableDelayedExpansion
-        echo Running: 
-        echo call !run_command:%%path_to_git_folder%%=%%d! 
-        call !run_command:%%path_to_git_folder%%=%%d!
-        
-    ) else (
-        rem echo Run recursive searching in subfolders of: "%%d"
+if exist "!current_path!\!search_folder!" (
+    echo.
+    echo *************************************************************
+    echo * Found "%search_folder%" folder in: !current_path!
+    echo *************************************************************
+    set "path_to_git_folder=!current_path!"
+    echo Running:
+    call echo %run_command%
+    call %run_command%
+) else (
+    rem echo Searching "%search_folder%" folder in: !current_path!
+    for /d %%d in ("!current_path!\*") do (
         call :search_folders "%%d"
     )
-
-    rem echo.
-    rem pause
 )
 
 exit /b
-
