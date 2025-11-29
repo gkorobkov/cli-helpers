@@ -19,8 +19,12 @@ title  Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 
 pushd . && (
 
-echo "Auto stash on %date%_%time%" 
- git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
+:gitStash
+echo.
+if defined auto_stash if /I "%auto_stash%"=="true" (
+  echo "Auto stash on %date%_%time%" 
+  rem git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
+)
 ) && (
 
 rem title UPDATING %sub_path% %branch_name%
