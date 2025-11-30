@@ -35,7 +35,7 @@ rem pause
 exit /b
 
 :search_folders
-set "current_path=%~1"
+set "current_path="%~1""
 
 if exist "!current_path!\!search_folder!" (
     echo.
