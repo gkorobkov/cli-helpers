@@ -20,42 +20,50 @@ title  Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 pushd . && (
 
 :gitStash
-echo.
-if defined auto_stash if /I "%auto_stash%"=="true" (
+rem echo.
+if "%auto_stash%" equ "true" (
   echo "Auto stash on %date%_%time%" 
   rem git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
 )
 ) && (
 
-rem title UPDATING %sub_path% %branch_name%
-echo.
-echo *********************
-echo *  git fetch origin  %branch_name% 
-echo *********************
+if "%fetch_origin%" equ "true" (
+  rem title UPDATING %sub_path% %branch_name%
+  echo.
+  rem echo ************************************************
+  echo [ Running: git fetch origin  %branch_name% ]
+  rem echo ************************************************
+  call git fetch origin  %branch_name% 
+ )
+) && (
 
-call git fetch origin  %branch_name% ) && (
+ if "%checkout_brach%" equ "true" (
 
-echo.
-echo *********************
-echo *  git checkout %branch_name%  
-echo *********************
+  echo.
+  rem echo ************************************************
+  echo [ Running: git checkout %branch_name% ]
+  rem echo ************************************************
+  call git checkout  %branch_name%  
+ ) 
 
-call git checkout  %branch_name%  ) && (
+) && (
+
 rem call git reset --hard HEAD  ) && (
+echo.
+rem echo ************************************************
+echo [ Running: git pull origin %branch_name% ]
+rem echo ************************************************
+
+call git pull origin %branch_name% 
+) && (
 
 echo.
-echo ***********************
-echo *  git pull origin %branch_name% 
-echo ***********************
+rem echo **************************************
+echo [ Running: git status -s -b -v ]
+rem echo **************************************
 
-call git pull origin %branch_name% ) && (
-
-echo.
-echo *******************
-echo *  git status -s  
-echo *******************
-
-call git status -s  ) && (
+call git status -s -b -v
+  ) && (
   
 
 echo.       
