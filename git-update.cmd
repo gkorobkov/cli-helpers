@@ -1,5 +1,8 @@
 @ECHO OFF
 
+rem set fetch_origin=true
+rem set checkout_brach=true
+
 set sub_path=%1
 if not defined sub_path set sub_path=%cd% 
 if not exist %sub_path% goto noFolder
