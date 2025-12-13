@@ -1,14 +1,11 @@
 @echo off
 
-REM Usage: find-123-folder.cmd [folder_path] [folder_name]
-REM If no path is provided, uses current directory
-REM If no folder_name is provided, uses ".git"
 
 setlocal EnableDelayedExpansion
 
 set "run_command=%~1"
 if "%run_command%"=="update" set "run_command=git-update.cmd ""%%path_to_git_folder%%"" "
-if "%run_command%"=="" set "run_command=git -C ""%%path_to_git_folder%%"" status -s -b -v"
+if "%run_command%"==""       set "run_command=git -C %%path_to_git_folder%% status -s -b -v"
 
 echo.
 echo *************************************************************
