@@ -4,7 +4,7 @@
 setlocal EnableDelayedExpansion
 
 set "run_command=%~1"
-if "%run_command%"=="update" set "run_command=git-update.cmd ""%%path_to_git_folder%%"" "
+if "%run_command%"=="update" set "run_command=git-update.cmd %%path_to_git_folder%% "
 if "%run_command%"==""       set "run_command=git -C %%path_to_git_folder%% status -s -b -v"
 
 echo.
@@ -32,21 +32,22 @@ rem pause
 exit /b
 
 :search_folders
-set "current_path="%~1""
+set "current_path=%~1"
+rem echo Searching !current_path!\!search_folder!
 
 if exist "!current_path!\!search_folder!" (
     echo.
+    set "path_to_git_folder="!current_path!""
     echo *************************************************************
-    echo * Found "%search_folder%" folder in: !current_path!
+    echo * Found "%search_folder%" folder in: !path_to_git_folder!
     echo *************************************************************
-    set "path_to_git_folder=!current_path!"
     echo Running:
     echo %run_command%
     call %run_command%
 ) else (
     rem echo Searching "%search_folder%" folder in: !current_path!
     for /d %%d in ("!current_path!\*") do (
-        rem echo Searching "%search_folder%" folder in: !current_path!
+        rem echo Searching "%search_folder%" folder in: "%%d"
         call :search_folders "%%d"
     )
 )
