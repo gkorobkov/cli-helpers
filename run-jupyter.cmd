@@ -1,1 +1,1 @@
-jupyter notebook --notebook-dir %cd%
+start jupyter notebook --notebook-dir %cd%
