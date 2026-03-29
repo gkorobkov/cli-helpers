@@ -7,6 +7,7 @@
 - [Prints the current Git branch name.](#prints-the-current-git-branch-name)
 - [Merges one Git branch into another and pushes the result.](#merges-one-git-branch-into-another-and-pushes-the-result)
 - [Runs a Git command across all matching subfolders.](#runs-a-git-command-across-all-matching-subfolders)
+- [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
 - [Shows all Git stashes with additional stash details.](#shows-all-git-stashes-with-additional-stash-details)
 - [Pulls the latest changes for a Git branch and optionally builds.](#pulls-the-latest-changes-for-a-git-branch-and-optionally-builds)
 - [Installs Python requirements into the local virtual environment.](#installs-python-requirements-into-the-local-virtual-environment)
@@ -115,6 +116,37 @@ git-run-allfolders.cmd update
 
 ```bat
 git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
+```
+
+
+## Shows or updates global Git user name and email.
+
+Files: `git-setup.cmd`, `git-setup.sh`
+
+Shows the current global `git config` values for `user.name` and `user.email`.
+If one or both parameters are passed, the script updates the corresponding global Git config values first and then prints the resulting settings.
+If a required value is still missing, the script prints usage help.
+
+Parameters:
+- `user_name`: Optional. Git user name. If omitted, the current `git config --global user.name` value is used.
+- `user_email`: Optional. Git user email. If omitted, the current `git config --global user.email` value is used.
+
+Examples:
+
+```bat
+git-setup.cmd
+```
+
+```bat
+git-setup.cmd "User Name" user@example.com
+```
+
+```bash
+./git-setup.sh
+```
+
+```bash
+./git-setup.sh "User Name" user@example.com
 ```
 
 
