@@ -1,122 +1,28 @@
 # Utility scripts for common local Git, Python, Jupyter, Qodo, and Markdown TOC workflows.
 
-## Table of contents
+# Table of contents
 
-- [Activates the local Python virtual environment.](#activates-the-local-python-virtual-environment)
-- [Creates a local Python virtual environment in `.venv`.](#creates-a-local-python-virtual-environment-in-venv)
-- [Prints the current Git branch name.](#prints-the-current-git-branch-name)
-- [Merges one Git branch into another and pushes the result.](#merges-one-git-branch-into-another-and-pushes-the-result)
-- [Runs a Git command across all matching subfolders.](#runs-a-git-command-across-all-matching-subfolders)
-- [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
-- [Shows all Git stashes with additional stash details.](#shows-all-git-stashes-with-additional-stash-details)
-- [Pulls the latest changes for a Git branch and optionally builds.](#pulls-the-latest-changes-for-a-git-branch-and-optionally-builds)
-- [Installs Python requirements into the local virtual environment.](#installs-python-requirements-into-the-local-virtual-environment)
-- [Installs Python requirements with the system `pip3`.](#installs-python-requirements-with-the-system-pip3)
-- [Starts Jupyter Notebook in the current directory.](#starts-jupyter-notebook-in-the-current-directory)
-- [Starts Qodo in UI mode.](#starts-qodo-in-ui-mode)
-- [Creates or updates TOC in MD (Markdown) files from the command prompt.](#creates-or-updates-toc-in-md-markdown-files-from-the-command-prompt)
-- [Creates or updates TOC in MD (Markdown) files with PowerShell.](#creates-or-updates-toc-in-md-markdown-files-with-powershell)
-- [Creates or updates TOC in MD (Markdown) files with Python.](#creates-or-updates-toc-in-md-markdown-files-with-python)
+- [Git Utilities](#git-utilities)
+  - [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
+  - [Prints the current Git branch name.](#prints-the-current-git-branch-name)
+  - [Shows all Git stashes with additional stash details.](#shows-all-git-stashes-with-additional-stash-details)
+  - [Pulls the latest changes for a Git branch and optionally builds.](#pulls-the-latest-changes-for-a-git-branch-and-optionally-builds)
+  - [Merges one Git branch into another and pushes the result.](#merges-one-git-branch-into-another-and-pushes-the-result)
+  - [Runs a Git command across all matching subfolders.](#runs-a-git-command-across-all-matching-subfolders)
+- [Markdown Utilities](#markdown-utilities)
+  - [Creates or updates TOC in MD (Markdown) files from the command prompt.](#creates-or-updates-toc-in-md-markdown-files-from-the-command-prompt)
+  - [Creates or updates TOC in MD (Markdown) files with PowerShell.](#creates-or-updates-toc-in-md-markdown-files-with-powershell)
+  - [Creates or updates TOC in MD (Markdown) files with Python.](#creates-or-updates-toc-in-md-markdown-files-with-python)
+- [Python Utilities](#python-utilities)
+  - [Activates the local Python virtual environment.](#activates-the-local-python-virtual-environment)
+  - [Creates a local Python virtual environment in `.venv`.](#creates-a-local-python-virtual-environment-in-venv)
+  - [Installs Python requirements into the local virtual environment.](#installs-python-requirements-into-the-local-virtual-environment)
+  - [Installs Python requirements with the system `pip3`.](#installs-python-requirements-with-the-system-pip3)
+  - [Starts Jupyter Notebook in the current directory.](#starts-jupyter-notebook-in-the-current-directory)
+  - [Starts Qodo in UI mode.](#starts-qodo-in-ui-mode)
+- [Other Utilities](#other-utilities)
 
-## Activates the local Python virtual environment.
-
-File: `activate-venv.cmd`
-
-Runs the standard Windows activation script from `.venv\Scripts\activate.bat`.
-Use it after a virtual environment already exists.
-
-Parameters:
-- None.
-
-Examples:
-
-```bat
-activate-venv.cmd
-```
-
-
-## Creates a local Python virtual environment in `.venv`.
-
-File: `create-venv.cmd`
-
-Creates a new virtual environment in the current repository by running `python -m venv .venv`.
-
-Parameters:
-- None.
-
-Examples:
-
-```bat
-create-venv.cmd
-```
-
-
-## Prints the current Git branch name.
-
-File: `git-branch-name.cmd`
-
-Outputs the active branch using `git rev-parse --abbrev-ref HEAD`.
-Useful inside other scripts or in a terminal pipeline.
-
-Parameters:
-- None.
-
-Examples:
-
-```bat
-git-branch-name.cmd
-```
-
-
-## Merges one Git branch into another and pushes the result.
-
-File: `git-merge.cmd`
-
-Updates both branches with `git-update.cmd`, checks out the destination branch, merges the source branch with `--allow-unrelated-histories`, pushes, and prints `git status -s`.
-The script operates inside the current folder unless a target folder is passed explicitly.
-
-Parameters:
-- `from_branch_name`: Required. Source branch to merge from.
-- `to_branch_name`: Required. Destination branch to merge into.
-- `sub_path`: Optional. Target repository folder. Defaults to the current directory.
-
-Examples:
-
-```bat
-git-merge.cmd feature/main main
-```
-
-```bat
-git-merge.cmd feature/main main C:\work\my-repo
-```
-
-
-## Runs a Git command across all matching subfolders.
-
-File: `git-run-allfolders.cmd`
-
-Recursively scans directories, looks for a marker folder such as `.git`, and runs a command in each matching location.
-If the first argument is `update`, the script expands it to `git-update.cmd %%path_to_git_folder%%`.
-Without arguments, it runs `git -C %%path_to_git_folder%% status -s -b -v`.
-
-Parameters:
-- `run_command`: Optional. Command template to run. May use `%%path_to_git_folder%%`. Default is `git -C %%path_to_git_folder%% status -s -b -v`.
-- `search_path`: Optional. Root folder to search. Defaults to the current directory.
-- `search_folder`: Optional. Marker folder to detect. Defaults to `.git`.
-
-Examples:
-
-```bat
-git-run-allfolders.cmd
-```
-
-```bat
-git-run-allfolders.cmd update
-```
-
-```bat
-git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
-```
+# Git Utilities 
 
 
 ## Shows or updates global Git user name and email.
@@ -149,6 +55,22 @@ git-setup.cmd "User Name" user@example.com
 ./git-setup.sh "User Name" user@example.com
 ```
 
+
+## Prints the current Git branch name.
+
+File: `git-branch-name.cmd`
+
+Outputs the active branch using `git rev-parse --abbrev-ref HEAD`.
+Useful inside other scripts or in a terminal pipeline.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+git-branch-name.cmd
+```
 
 ## Shows all Git stashes with additional stash details.
 
@@ -203,72 +125,59 @@ git-update.cmd C:\work\my-repo main
 ```
 
 
-## Installs Python requirements into the local virtual environment.
 
-File: `install-req-venv.cmd`
+## Merges one Git branch into another and pushes the result.
 
-Runs `.venv\Scripts\python.exe -m pip install -r requirements.txt`.
-Use it after `create-venv.cmd`.
+File: `git-merge.cmd`
+
+Updates both branches with `git-update.cmd`, checks out the destination branch, merges the source branch with `--allow-unrelated-histories`, pushes, and prints `git status -s`.
+The script operates inside the current folder unless a target folder is passed explicitly.
 
 Parameters:
-- None.
+- `from_branch_name`: Required. Source branch to merge from.
+- `to_branch_name`: Required. Destination branch to merge into.
+- `sub_path`: Optional. Target repository folder. Defaults to the current directory.
 
 Examples:
 
 ```bat
-install-req-venv.cmd
+git-merge.cmd feature/main main
+```
+
+```bat
+git-merge.cmd feature/main main C:\work\my-repo
 ```
 
 
-## Installs Python requirements with the system `pip3`.
+## Runs a Git command across all matching subfolders.
 
-File: `install-req.cmd`
+File: `git-run-allfolders.cmd`
 
-Runs `pip3 install -r ./requirements.txt` from the current folder.
-Use it when you intentionally want the global or externally managed Python environment instead of `.venv`.
+Recursively scans directories, looks for a marker folder such as `.git`, and runs a command in each matching location.
+If the first argument is `update`, the script expands it to `git-update.cmd %%path_to_git_folder%%`.
+Without arguments, it runs `git -C %%path_to_git_folder%% status -s -b -v`.
 
 Parameters:
-- None.
+- `run_command`: Optional. Command template to run. May use `%%path_to_git_folder%%`. Default is `git -C %%path_to_git_folder%% status -s -b -v`.
+- `search_path`: Optional. Root folder to search. Defaults to the current directory.
+- `search_folder`: Optional. Marker folder to detect. Defaults to `.git`.
 
 Examples:
 
 ```bat
-install-req.cmd
+git-run-allfolders.cmd
 ```
-
-
-## Starts Jupyter Notebook in the current directory.
-
-File: `run-jupyter.cmd`
-
-Launches Jupyter Notebook with `--notebook-dir %cd%`.
-The script uses `start`, so it opens in a separate window and returns immediately.
-
-Parameters:
-- None.
-
-Examples:
 
 ```bat
-run-jupyter.cmd
+git-run-allfolders.cmd update
 ```
-
-
-## Starts Qodo in UI mode.
-
-File: `run-qodo-ui.cmd`
-
-Runs `start qodo --ui`.
-The file also contains reminder comments for Qodo installation and login.
-
-Parameters:
-- None.
-
-Examples:
 
 ```bat
-run-qodo-ui.cmd
+git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
 ```
+
+
+# Markdown Utilities
 
 
 ## Creates or updates TOC in MD (Markdown) files from the command prompt.
@@ -355,3 +264,112 @@ python update_md_toc.py --files README.md --dry-run
 ```bash
 python update_md_toc.py --files README.md --toc-depth h3
 ```
+
+
+# Python Utilities
+
+
+
+## Activates the local Python virtual environment.
+
+File: `activate-venv.cmd`
+
+Runs the standard Windows activation script from `.venv\Scripts\activate.bat`.
+Use it after a virtual environment already exists.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+activate-venv.cmd
+```
+
+
+## Creates a local Python virtual environment in `.venv`.
+
+File: `create-venv.cmd`
+
+Creates a new virtual environment in the current repository by running `python -m venv .venv`.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+create-venv.cmd
+```
+## Installs Python requirements into the local virtual environment.
+
+File: `install-req-venv.cmd`
+
+Runs `.venv\Scripts\python.exe -m pip install -r requirements.txt`.
+Use it after `create-venv.cmd`.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+install-req-venv.cmd
+```
+
+
+## Installs Python requirements with the system `pip3`.
+
+File: `install-req.cmd`
+
+Runs `pip3 install -r ./requirements.txt` from the current folder.
+Use it when you intentionally want the global or externally managed Python environment instead of `.venv`.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+install-req.cmd
+```
+
+
+## Starts Jupyter Notebook in the current directory.
+
+File: `run-jupyter.cmd`
+
+Launches Jupyter Notebook with `--notebook-dir %cd%`.
+The script uses `start`, so it opens in a separate window and returns immediately.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+run-jupyter.cmd
+```
+
+
+## Starts Qodo in UI mode.
+
+File: `run-qodo-ui.cmd`
+
+Runs `start qodo --ui`.
+The file also contains reminder comments for Qodo installation and login.
+
+Parameters:
+- None.
+
+Examples:
+
+```bat
+run-qodo-ui.cmd
+```
+
+
+
+# Other Utilities
+
+
