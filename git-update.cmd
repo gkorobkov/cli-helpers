@@ -79,21 +79,14 @@ title UPDATE FINISHED. Branch: '%branch_name%'. Folder: '%sub_path%'
   if "%build-after-update%" equ "true" (
     ECHO %sub_path% %branch_name% BUILDING  
     title %sub_path% %branch_name% BUILDING
-rem { build -projectType net }
-    if exist ps.cmd ( 
-      ps.cmd measure-command  { build -projectType net }
-    ) else if exist build-bin-debug.cmd (
-      build-bin-debug.cmd
-    ) else if exist build-common-debug.cmd (
-      build-common-debug.cmd
-    ) else if exist build-bin.cmd (
-      build-bin.cmd
+ 
+    if exist command1.cmd ( 
+      command1.cmd  
+    ) else if exist command2.cmd (
+      command2.cmd
     ) else (
-      rem copy ..\ps.cmd 
-      rem ps.cmd measure-command { build  }
+       ECHO NO BUILD COMMAND FOUND FOR %sub_path% %branch_name%   
     )
-
-                
   )
 ) && (
 if "%exitonfinish%" equ "true" ( 
@@ -101,7 +94,6 @@ exit
 )
 ) && (
 popd ) 
-rem -projectType net
 
 
 goto EOF
