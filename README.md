@@ -178,7 +178,7 @@ Parameters:
 
 Environment variables:
 - `fetch_origin=true`: Run `git fetch origin <branch>` before pull.
-- `checkout_brach=true`: Run `git checkout <branch>` before pull. The variable name is intentionally spelled as in the script.
+- `checkout_branch=true`: Run `git checkout <branch>` before pull.
 - `auto_stash=true`: Enable the auto-stash branch of the script. The actual stash command is currently commented out.
 - `build-after-update=true`: Run one of the local build scripts after update if available.
 - `exitonfinish=true`: Exit the shell when the script finishes.
@@ -193,7 +193,7 @@ git-update.cmd
 ```bat
 :: Windows CMD / BAT
 set fetch_origin=true
-set checkout_brach=true
+set checkout_branch=true
 set auto_stash=true
 set build-after-update=true
 set exitonfinish=true
@@ -302,7 +302,7 @@ File: `update-md-toc.ps1`
 
 PowerShell implementation of the Markdown TOC updater.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
-Recognized TOC markers include `ÐžÐ³Ð»Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ`, `ÐžÐ³Ð»Ð°Ð²Ð»Ð½Ð¸Ðµ`, `TOC`, and `Table of contents`.
+Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, and `Table of contents`.
 
 General form:
 
@@ -343,7 +343,7 @@ File: `update-md-toc.py`
 
 Python implementation of the Markdown TOC updater.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
-Recognized TOC markers include `ÐžÐ³Ð»Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ`, `ÐžÐ³Ð»Ð°Ð²Ð»Ð½Ð¸Ðµ`, `TOC`, and `Table of contents`.
+Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, and `Table of contents`.
 
 General form:
 

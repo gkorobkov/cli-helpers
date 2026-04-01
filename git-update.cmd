@@ -1,7 +1,7 @@
 @ECHO OFF
 
 rem set fetch_origin=true
-rem set checkout_brach=true
+rem set checkout_branch=true
 
 set sub_path=%1
 if not defined sub_path set sub_path=%cd% 
@@ -40,7 +40,7 @@ if "%fetch_origin%" equ "true" (
  )
 ) && (
 
- if "%checkout_brach%" equ "true" (
+ if "%checkout_branch%" equ "true" (
 
   echo.
   rem echo ************************************************
@@ -104,9 +104,9 @@ goto EOF
 goto noArgs
 
 :noArgs
-  echo This cmd is used to update git branch to the latest.
-  echo [Optional] The first parameter is the subfolder name where the branch is being updated. If parameter is missing then current folder is used.
-  echo [Optional] The second parameter is the branch name. If parameter is missing then current local branch is used.
+  echo This command updates a Git branch to the latest state.
+  echo [Optional] The first parameter is the subfolder path where the branch is being updated. If the parameter is missing, the current folder is used.
+  echo [Optional] The second parameter is the branch name. If the parameter is missing, the current local branch is used.
   echo Usage:
   echo   git-update.cmd   
   echo or

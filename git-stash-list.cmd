@@ -1,19 +1,19 @@
 @echo off
 
 REM Git stash list script
-REM Lists all stashes with their details
+REM Lists all stashes with additional details
 
 echo Git Stash List
 echo ==============
 echo.
 
-REM Get list of stashes
+REM Get the list of stashes
 git stash list
 for /f "tokens=1 delims=:" %%i in ('git stash list') do (
     echo === %%i ===
     git stash show  %%i 
     echo.
-    rem TO DO: add simple output for the stash
+    rem TODO: add simplified output for the stash
     echo.
 )
 
