@@ -29,7 +29,7 @@ $FENCE_RE = '^\s*(```|~~~)'
 $UTF8_NO_BOM = [System.Text.UTF8Encoding]::new($false)
 
 function Show-Usage {
-    Write-Output "Usage: update_md_toc.cmd [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]"
+    Write-Output "Usage: update-md-toc.cmd [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]"
 }
 
 function Clean-HeadingText {
@@ -293,17 +293,17 @@ function Resolve-Targets {
     param([string[]]$Files)
 
     if ($Files.Count -gt 0) {
-        return [string[]]$Files
+        return [string[]]($Files | Sort-Object -Unique)
     }
 
-    $targets = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+    $targets = New-Object System.Collections.Generic.List[string]
     foreach ($pattern in $TARGET_FILE_GLOBS) {
         foreach ($item in Get-ChildItem -Path . -Filter $pattern -File) {
-            [void]$targets.Add($item.Name)
+            $targets.Add($item.Name)
         }
     }
 
-    return [string[]]($targets.ToArray() | Sort-Object)
+    return [string[]]($targets | Sort-Object -Unique)
 }
 
 try {
