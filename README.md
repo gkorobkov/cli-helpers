@@ -1,4 +1,4 @@
-# Utility scripts for common local Git, Python, Jupyter, Qodo, and Markdown TOC workflows.
+# Command-line helper scripts for common local development workflows.
 
 # Table of contents
 
