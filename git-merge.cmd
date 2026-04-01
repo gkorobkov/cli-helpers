@@ -15,9 +15,9 @@ cd %sub_path%
 
 echo.       
 echo ********************************************************************************
-echo * Running git MERGE. From Branch: '%from_branch_name%', to Branch '%to_branch_name%' Folder: '%sub_path%'
+echo * Running git MERGE. From branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  Running git MERGE. From Branch: '%from_branch_name%', to Branch '%to_branch_name%' Folder: '%sub_path%'
+title  Running git MERGE. From branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 
 pushd . && (
 
@@ -29,9 +29,9 @@ rem call git push  ) && (
 
 echo.       
 echo ********************************************************************************
-echo * MERGE from Branch: '%from_branch_name%', to Branch '%to_branch_name%' Folder: '%sub_path%'
+echo * MERGE from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  MERGE from Branch: '%from_branch_name%', to Branch '%to_branch_name%' Folder: '%sub_path%'
+title  MERGE from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 
 call git merge --allow-unrelated-histories  %from_branch_name%  ) && (
 
@@ -53,7 +53,7 @@ echo *  git status -s  *
 echo *******************
 call git status -s  ) && (
 
-ECHO MERGE Finished from Branch: '%from_branch_name%', to Branch '%to_branch_name%' Folder: '%sub_path%'
+ECHO MERGE finished from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 title %comspec% ) && (
 popd )
 
@@ -66,10 +66,10 @@ goto EOF
 goto noArgs
 
 :noArgs
-  echo This cmd is used to MERGE two git branches.
+  echo This command merges two Git branches.
   echo [Required] The first parameter is the source branch name.
   echo [Required] The second parameter is the destination branch name.
-  echo [Optional] The third parameter is the subfolder name where the branch is being updated. If parameter is missing then current folder is used.
+  echo [Optional] The third parameter is the subfolder path where the branch is being updated. If the parameter is missing, the current folder is used.
   echo Usage:
   echo   git-merge.cmd from_branch_name to_branch_name 
   echo or
