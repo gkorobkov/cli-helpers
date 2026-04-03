@@ -1,5 +1,10 @@
 # Command-line helper scripts for common local development workflows.
 
+<p align="center">
+  <img src="./assets/cli-helpers-demo.png">
+</p>
+Small Windows CMD, PowerShell, and bash helpers for common local development tasks.
+
 # Table of contents
 
 - [Command Line Utilities](#command-line-utilities)
