@@ -9,6 +9,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
 
 - [Command Line Utilities](#command-line-utilities)
   - [Checks, lists, adds, or removes the current directory in `PATH`.](#checks-lists-adds-or-removes-the-current-directory-in-path)
+  - [Shows, grants, or removes Windows file access permissions.](#shows-grants-or-removes-windows-file-access-permissions)
 - [Git Utilities](#git-utilities)
   - [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
   - [Prints the current Git branch name.](#prints-the-current-git-branch-name)
@@ -71,6 +72,50 @@ current-path.cmd add
 
 Linux note:
 - Use `source ./current-path.sh add` or `source ./current-path.sh delete` when you need the current shell session to receive the updated `PATH` immediately. Without `source`, only future shells will pick up the persistent change.
+
+
+## Shows, grants, or removes Windows file access permissions.
+
+File: `file-access.cmd`
+
+Wraps `icacls` for common permission tasks on a single file.
+Use it to inspect the current ACL, grant access to the current user and system accounts, remove a specific account, or apply the standard SSH private key fix in one step.
+
+General form:
+
+```bat
+:: Windows CMD / BAT
+file-access.cmd <file> [/fix-ssh-access | /grant <perms> | /remove <user>]
+```
+
+Parameters:
+- `<file>`: Required. Path to the target file.
+- No second argument: Print the current permissions with `icacls`.
+- `/fix-ssh-access`: Remove inheritance, strip `BUILTIN\Users` and `Everyone`, and grant Full access to the current user, `SYSTEM`, and `Administrators`. Use this when SSH reports *"Bad permissions … BUILTIN\Users"*.
+- `/grant <perms>`: Remove inheritance and grant the specified mask to the current user, `SYSTEM`, and `Administrators`. Masks: `F` (Full), `M` (Modify), `RX` (Read+Execute), `R` (Read).
+- `/remove <user>`: Remove all ACL entries for the named account (e.g. `"BUILTIN\Users"`, `"Everyone"`).
+
+Examples:
+
+```bat
+:: Windows CMD / BAT
+file-access.cmd %USERPROFILE%\.ssh\id_rsa
+```
+
+```bat
+:: Windows CMD / BAT
+file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 /fix-ssh-access
+```
+
+```bat
+:: Windows CMD / BAT
+file-access.cmd %USERPROFILE%\.ssh\id_rsa /grant F
+```
+
+```bat
+:: Windows CMD / BAT
+file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
+```
 
 
 # Git Utilities
