@@ -10,6 +10,8 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
 - [Command Line Utilities](#command-line-utilities)
   - [Checks, lists, adds, or removes the current directory in `PATH`.](#checks-lists-adds-or-removes-the-current-directory-in-path)
   - [Shows, grants, or removes Windows file access permissions.](#shows-grants-or-removes-windows-file-access-permissions)
+- [SSH / Remote Utilities](#ssh--remote-utilities)
+  - [Copies a project folder to a remote server via SSH/scp.](#copies-a-project-folder-to-a-remote-server-via-sshscp)
 - [Git Utilities](#git-utilities)
   - [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
   - [Prints the current Git branch name.](#prints-the-current-git-branch-name)
@@ -115,6 +117,83 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa /grant F
 ```bat
 :: Windows CMD / BAT
 file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
+```
+
+
+# SSH / Remote Utilities
+
+## Copies a project folder to a remote server via SSH/scp.
+
+Files: `copy-ssh-remote.cmd`, `copy-ssh-remote.sh`
+
+Reads connection details from a `*.local.json` config file in the current folder, verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
+Without `/copy` (or `--copy`) the script performs a dry check only and prints what would happen.
+Multiple named profiles are supported; the active profile is selected with `/profile:name` or defaults to `default_profile` in the config.
+
+General form:
+
+```bat
+:: Windows CMD / BAT
+copy-ssh-remote.cmd [/config:path.json] [/profile:name] [/check|/copy|/list]
+```
+
+```bash
+# Linux / bash
+./copy-ssh-remote.sh [--config=path.json] [--profile=name] [--check|--copy|--list]
+```
+
+Parameters:
+- No arguments: check mode using the first `*.local.json` in the current folder and the default profile.
+- `/config:path.json` / `--config=path.json`: Optional. Path to the config file.
+- `/profile:name` / `--profile=name`: Optional. Profile to use. Defaults to `default_profile` in config.
+- `/check` / `--check`: Optional. Verify connectivity without copying (default mode).
+- `/copy` / `--copy`: Optional. Run the actual `scp` copy after checks pass.
+- `/list` / `--list`: Optional. Print all available profiles and exit.
+
+Config file format (save as `*.local.json`, e.g. `copy-remote.local.json`; excluded from git):
+
+```json
+{
+  "default_profile": "my-project",
+  "profiles": {
+    "my-project": {
+      "description": "My Project - myserver.com",
+      "user":        "myuser",
+      "server":      "myserver.com",
+      "ssh_key":     "C:\\Users\\Me\\.ssh\\id_rsa",
+      "local_dir":   "C:\\Projects\\my-project",
+      "remote_dir":  "/home/myuser/my-project",
+      "deploy_hint": "cd /home/myuser/my-project && docker compose up -d"
+    }
+  }
+}
+```
+
+Examples:
+
+```bat
+:: Windows CMD / BAT — check connectivity (default)
+copy-ssh-remote.cmd
+```
+
+```bat
+:: Windows CMD / BAT — copy using the default profile
+copy-ssh-remote.cmd /copy
+```
+
+```bat
+:: Windows CMD / BAT — copy using a named profile
+copy-ssh-remote.cmd /profile:ai-agent /copy
+```
+
+```bash
+# Linux / bash — list available profiles
+./copy-ssh-remote.sh --list
+```
+
+```bash
+# Linux / bash — copy using a named profile
+./copy-ssh-remote.sh --profile=ai-agent --copy
 ```
 
 
