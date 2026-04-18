@@ -90,10 +90,13 @@ for ARG in "$@"; do
     esac
 done
 
+# Resolve LOCAL_DIR to absolute path (handles relative paths like ./nginx)
+[[ -n "$LOCAL_DIR" ]] && LOCAL_DIR="$(realpath -m "$LOCAL_DIR")"
+
 # =============================================================
 # Config file mode (skip if all inline params provided)
 # =============================================================
-if [[ -z "$RUSER" || -z "$SERVER" || -z "$SSH_KEY" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; then
+if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; then
 
     if [[ -z "$CFG" ]]; then
         for f in *.remote.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
@@ -106,7 +109,7 @@ if [[ -z "$RUSER" || -z "$SERVER" || -z "$SSH_KEY" || -z "$LOCAL_DIR" || -z "$RE
         echo ""
         echo "  [ERROR]  No config file found. Use inline params or create *.remote.ini"
         echo "  Config:  --config=file.ini  or place *.remote.ini in current folder"
-        echo "  Inline:  --user=name --server=host --ssh_key=path --local_dir=path --remote_dir=path"
+        echo "  Inline:  --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path]"
         echo ""
         exit 1
     fi
@@ -223,7 +226,7 @@ echo "   Command : $CMD"
 [[ -n "$CFG" ]] && echo "   Config  : $CFG"
 echo "  ============================================"
 echo "   Server  : $RUSER@$SERVER"
-echo "   SSH key : $SSH_KEY"
+if [[ -n "$SSH_KEY" ]]; then echo "   SSH key : $SSH_KEY"; else echo "   SSH key : (default)"; fi
 echo "   Local   : $LOCAL_DIR"
 echo "   Remote  : $REMOTE_DIR"
 echo "  ============================================"
@@ -231,6 +234,7 @@ echo ""
 
 ALL_OK=1
 REMOTE_MISSING=0
+REMOTE_NOPERM=0
 
 if [[ -d "$LOCAL_DIR" ]]; then
     echo "  [OK]     Local folder found"
@@ -239,16 +243,21 @@ else
     ALL_OK=0
 fi
 
-if [[ -f "$SSH_KEY" ]]; then
-    echo "  [OK]     SSH key found"
-else
-    echo "  [ERROR]  SSH key NOT FOUND: $SSH_KEY"
-    ALL_OK=0
+if [[ -n "$SSH_KEY" ]]; then
+    if [[ -f "$SSH_KEY" ]]; then
+        echo "  [OK]     SSH key found"
+    else
+        echo "  [ERROR]  SSH key NOT FOUND: $SSH_KEY"
+        ALL_OK=0
+    fi
 fi
 
+SSH_KEY_ARG=()
+[[ -n "$SSH_KEY" ]] && SSH_KEY_ARG=(-i "$SSH_KEY")
+
 echo "  Checking SSH to $RUSER@$SERVER..."
-SSH_RESULT=$(ssh -i "$SSH_KEY" -o ConnectTimeout=5 -o BatchMode=yes \
-    "$RUSER@$SERVER" "test -d '$REMOTE_DIR' && echo FOUND || echo MISSING" 2>/dev/null || true)
+SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
+    "$RUSER@$SERVER" "if [ -d '$REMOTE_DIR' ]; then if [ -w '$REMOTE_DIR' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" 2>/dev/null || true)
 
 if [[ -z "$SSH_RESULT" ]]; then
     echo "  [FAILED] SSH connection failed: $RUSER@$SERVER"
@@ -258,6 +267,9 @@ elif [[ "$SSH_RESULT" == "FOUND" ]]; then
 elif [[ "$SSH_RESULT" == "MISSING" ]]; then
     echo "  [WARN]   SSH OK - remote folder will be created: $REMOTE_DIR"
     REMOTE_MISSING=1
+elif [[ "$SSH_RESULT" == "NOPERM" ]]; then
+    echo "  [WARN]   SSH OK - remote folder exists but needs sudo chown: $REMOTE_DIR"
+    REMOTE_NOPERM=1
 else
     echo "  [FAILED] SSH error: $SSH_RESULT"
     ALL_OK=0
@@ -285,7 +297,7 @@ echo ""
 
 if [[ "$REMOTE_MISSING" -eq 1 ]]; then
     echo "  Creating remote folder: $REMOTE_DIR"
-    ssh -i "$SSH_KEY" "$RUSER@$SERVER" "mkdir -p '$REMOTE_DIR'"
+    ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo mkdir -p '$REMOTE_DIR' && sudo chown $RUSER:$RUSER '$REMOTE_DIR'"
     if [[ $? -ne 0 ]]; then
         echo "  [FAILED] Could not create remote folder."
         exit 1
@@ -293,8 +305,18 @@ if [[ "$REMOTE_MISSING" -eq 1 ]]; then
     echo "  [OK]     Remote folder created."
     echo ""
 fi
+if [[ "$REMOTE_NOPERM" -eq 1 ]]; then
+    echo "  Fixing permissions: $REMOTE_DIR"
+    ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo chown $RUSER:$RUSER '$REMOTE_DIR'"
+    if [[ $? -ne 0 ]]; then
+        echo "  [FAILED] Could not fix permissions."
+        exit 1
+    fi
+    echo "  [OK]     Permissions fixed."
+    echo ""
+fi
 
-scp -i "$SSH_KEY" -r "$LOCAL_DIR/." "$RUSER@$SERVER:$REMOTE_DIR/"
+scp "${SSH_KEY_ARG[@]}" -r "$LOCAL_DIR/." "$RUSER@$SERVER:$REMOTE_DIR/"
 
 if [[ $? -eq 0 ]]; then
     echo ""

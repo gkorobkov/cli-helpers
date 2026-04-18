@@ -93,10 +93,13 @@ exit /b 1
 
 :args_done
 
+rem Resolve LOCAL_DIR to absolute path (handles relative paths like ./nginx)
+if defined LOCAL_DIR for %%F in ("%LOCAL_DIR%") do set "LOCAL_DIR=%%~fF"
+
 rem =============================================================
 rem Inline mode: use params directly if all required ones provided
 rem =============================================================
-if defined RUSER if defined SERVER if defined SSH_KEY if defined LOCAL_DIR if defined REMOTE_DIR goto :run_check
+if defined RUSER if defined SERVER if defined LOCAL_DIR if defined REMOTE_DIR goto :run_check
 
 rem =============================================================
 rem Config file mode
@@ -109,7 +112,7 @@ if "%CFG%"=="" (
     echo.
     echo  [ERROR]  No config file found. Use inline params or create *.remote.ini
     echo  Config:  /config:file.ini  or place *.remote.ini in current folder
-    echo  Inline:  /user:name /server:host /ssh_key:path /local_dir:path /remote_dir:path
+    echo  Inline:  /user:name /server:host /local_dir:path /remote_dir:path [/ssh_key:path]
     echo.
     exit /b 1
 )
@@ -180,7 +183,7 @@ echo   Command : %CMD%
 if defined CFG echo   Config  : %CFG%
 echo  ============================================
 echo   Server  : %RUSER%@%SERVER%
-echo   SSH key : %SSH_KEY%
+if defined SSH_KEY ( echo   SSH key : %SSH_KEY% ) else ( echo   SSH key : ^(default^) )
 echo   Local   : %LOCAL_DIR%
 echo   Remote  : %REMOTE_DIR%
 echo  ============================================
@@ -188,6 +191,7 @@ echo.
 
 set "ALL_OK=1"
 set "REMOTE_MISSING=0"
+set "REMOTE_NOPERM=0"
 
 if exist "%LOCAL_DIR%\" (
     echo  [OK]     Local folder found
@@ -196,17 +200,22 @@ if exist "%LOCAL_DIR%\" (
     set "ALL_OK=0"
 )
 
-if exist "%SSH_KEY%" (
-    echo  [OK]     SSH key found
-) else (
-    echo  [ERROR]  SSH key NOT FOUND: %SSH_KEY%
-    set "ALL_OK=0"
+if defined SSH_KEY (
+    if exist "%SSH_KEY%" (
+        echo  [OK]     SSH key found
+    ) else (
+        echo  [ERROR]  SSH key NOT FOUND: %SSH_KEY%
+        set "ALL_OK=0"
+    )
 )
+
+set "SSH_KEY_ARG="
+if defined SSH_KEY set "SSH_KEY_ARG=-i "%SSH_KEY%""
 
 echo  Checking SSH to %RUSER%@%SERVER%...
 set "SSH_RESULT="
 set "SSH_TMP=%TEMP%\ssh_chk.tmp"
-ssh -i "%SSH_KEY%" -o ConnectTimeout=5 %RUSER%@%SERVER% "test -d %REMOTE_DIR% && echo FOUND || echo MISSING" > "%SSH_TMP%" 2>&1
+ssh %SSH_KEY_ARG% -o ConnectTimeout=5 %RUSER%@%SERVER% "if [ -d '%REMOTE_DIR%' ]; then if [ -w '%REMOTE_DIR%' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" > "%SSH_TMP%" 2>&1
 if exist "%SSH_TMP%" ( set /p SSH_RESULT=< "%SSH_TMP%" & del "%SSH_TMP%" 2>nul )
 
 if not defined SSH_RESULT (
@@ -217,6 +226,9 @@ if not defined SSH_RESULT (
 ) else if /i "%SSH_RESULT%"=="MISSING" (
     echo  [WARN]   SSH OK - remote folder will be created: %REMOTE_DIR%
     set "REMOTE_MISSING=1"
+) else if /i "%SSH_RESULT%"=="NOPERM" (
+    echo  [WARN]   SSH OK - remote folder exists but needs sudo chown: %REMOTE_DIR%
+    set "REMOTE_NOPERM=1"
 ) else (
     echo  [FAILED] SSH error: %SSH_RESULT%
     set "ALL_OK=0"
@@ -238,13 +250,20 @@ echo.
 
 if "%REMOTE_MISSING%"=="1" (
     echo  Creating remote folder: %REMOTE_DIR%
-    ssh -i "%SSH_KEY%" %RUSER%@%SERVER% "mkdir -p %REMOTE_DIR%"
-    if %ERRORLEVEL% neq 0 ( echo  [FAILED] Could not create remote folder. & exit /b 1 )
+    ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "sudo mkdir -p '%REMOTE_DIR%' && sudo chown %RUSER%:%RUSER% '%REMOTE_DIR%'"
+    if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not create remote folder. & exit /b 1 )
     echo  [OK]     Remote folder created.
     echo.
 )
+if "%REMOTE_NOPERM%"=="1" (
+    echo  Fixing permissions: %REMOTE_DIR%
+    ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "sudo chown %RUSER%:%RUSER% '%REMOTE_DIR%'"
+    if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not fix permissions. & exit /b 1 )
+    echo  [OK]     Permissions fixed.
+    echo.
+)
 
-scp -i "%SSH_KEY%" -r "%LOCAL_DIR%\." %RUSER%@%SERVER%:%REMOTE_DIR%/
+scp %SSH_KEY_ARG% -r "%LOCAL_DIR%\." %RUSER%@%SERVER%:%REMOTE_DIR%/
 
 if %ERRORLEVEL% equ 0 (
     echo.
