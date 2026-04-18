@@ -2,167 +2,209 @@
 # =============================================================
 # copy-ssh-remote.sh - copy project to remote server via SSH/scp
 #
-#  Config: *.local.json in current folder (not in git)
-#  Template: copy-remote.local.example.json
-#  Requires: python3 (for JSON parsing)
+#  Config: *.remote.ini or *.local.ini in current folder (not in git)
+#  Requires: ssh, scp
 #
-#  Parameters (all optional, named, any order):
-#    --config=path.json    config file  (default: first *.local.json in current dir)
-#    --profile=name        profile name (default: default_profile from config)
-#    --copy                run copy     (default: check only)
-#    --list                list available profiles and exit
+#  Two modes:
+#
+#  1. Config file:
+#       --config=file.ini    config file  (default: first *.remote.ini)
+#       --profile=name       profile      (default: default_profile from config)
+#       --list               list profiles and exit
+#
+#  2. Inline (no config file needed):
+#       --user=name          SSH user
+#       --server=host        SSH server
+#       --ssh_key=path       SSH key file
+#       --local_dir=path     local folder
+#       --remote_dir=path    remote folder
+#       --deploy_hint=cmd    (optional) shown after copy
+#
+#  Common:
+#       --copy               run copy (default: check only)
+#       --check              check only
 #
 #  Examples:
 #    ./copy-ssh-remote.sh
 #    ./copy-ssh-remote.sh --copy
-#    ./copy-ssh-remote.sh --profile=ai-agent
 #    ./copy-ssh-remote.sh --profile=ai-agent --copy
-#    ./copy-ssh-remote.sh --config=/other/config.json --profile=ai-agent --copy
-#
+#    ./copy-ssh-remote.sh --config=/other/cfg.ini --profile=ai-agent --copy
+#    ./copy-ssh-remote.sh --user=myuser --server=myserver.com --ssh_key=~/.ssh/id_rsa --local_dir=/home/me/proj --remote_dir=/home/user/proj --copy
 # =============================================================
-#  Config file format (save as *.local.json, e.g. copy-remote.local.json):
+#  Config file format (save as *.remote.ini):
 #
-#  {
-#    "default_profile": "my-project",
-#    "profiles": {
-#      "my-project": {
-#        "description": "My Project - myserver.com",
-#        "user":        "myuser",
-#        "server":      "myserver.com",
-#        "ssh_key":     "~/.ssh/id_rsa",
-#        "local_dir":   "/home/me/projects/my-project",
-#        "remote_dir":  "/home/myuser/my-project",
-#        "deploy_hint": "cd /home/myuser/my-project && docker compose up -d"
-#      },
-#      "another-project": {
-#        "description": "Another Project - myserver.com",
-#        "user":        "myuser",
-#        "server":      "myserver.com",
-#        "ssh_key":     "~/.ssh/id_rsa",
-#        "local_dir":   "/home/me/projects/another-project",
-#        "remote_dir":  "/home/myuser/another-project",
-#        "deploy_hint": "cd /home/myuser/another-project && npm start"
-#      }
-#    }
-#  }
+#    default_profile=my-project
+#
+#    [my-project]
+#    description=My Project - myserver.com
+#    user=myuser
+#    server=myserver.com
+#    ssh_key=~/.ssh/id_rsa
+#    local_dir=/home/me/projects/my-project
+#    remote_dir=/home/myuser/my-project
+#    deploy_hint=cd /home/myuser/my-project && docker compose up -d
+#
+#    [another-project]
+#    description=Another Project - myserver.com
+#    user=myuser
+#    server=myserver.com
+#    ssh_key=~/.ssh/id_rsa
+#    local_dir=/home/me/projects/another-project
+#    remote_dir=/home/myuser/another-project
+#    deploy_hint=cd /home/myuser/another-project && npm start
 # =============================================================
 
 CMD="check"
 PROFILE=""
 CFG=""
+RUSER=""
+SERVER=""
+SSH_KEY=""
+LOCAL_DIR=""
+REMOTE_DIR=""
+DEPLOY_HINT=""
+PROFILE_DESC=""
 
 # =============================================================
-# Parse named arguments (any order)
+# Parse arguments
 # =============================================================
 for ARG in "$@"; do
     case "$ARG" in
-        --config=*)   CFG="${ARG#--config=}" ;;
-        --profile=*)  PROFILE="${ARG#--profile=}" ;;
-        --copy)       CMD="copy" ;;
-        --check)      CMD="check" ;;
-        --list)       CMD="list" ;;
+        --config=*)      CFG="${ARG#--config=}" ;;
+        --profile=*)     PROFILE="${ARG#--profile=}" ;;
+        --user=*)        RUSER="${ARG#--user=}" ;;
+        --server=*)      SERVER="${ARG#--server=}" ;;
+        --ssh_key=*)     SSH_KEY="${ARG#--ssh_key=}" ;;
+        --local_dir=*)   LOCAL_DIR="${ARG#--local_dir=}" ;;
+        --remote_dir=*)  REMOTE_DIR="${ARG#--remote_dir=}" ;;
+        --deploy_hint=*) DEPLOY_HINT="${ARG#--deploy_hint=}" ;;
+        --copy)          CMD="copy" ;;
+        --check)         CMD="check" ;;
+        --list)          CMD="list" ;;
         *)
             echo ""
             echo "  [ERROR]  Unknown argument: $ARG"
-            echo "  Valid:   --config=file.json  --profile=name  --check  --copy  --list"
+            echo "  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_dir=  --remote_dir=  --deploy_hint=  --check  --copy  --list"
             echo ""
             exit 1 ;;
     esac
 done
 
 # =============================================================
-# Find config file
+# Config file mode (skip if all inline params provided)
 # =============================================================
-if [[ -z "$CFG" ]]; then
-    for f in *.local.json; do
-        [[ -f "$f" ]] && CFG="$(realpath "$f")" && break
-    done
-fi
+if [[ -z "$RUSER" || -z "$SERVER" || -z "$SSH_KEY" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; then
 
-if [[ -z "$CFG" ]]; then
-    echo ""
-    echo "  [ERROR]  No config file found in current folder."
-    echo "  Create a *.local.json file (see copy-remote.local.example.json)"
-    echo "  or use --config=path.json"
-    echo ""
-    exit 1
-fi
+    if [[ -z "$CFG" ]]; then
+        for f in *.remote.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
+    fi
+    if [[ -z "$CFG" ]]; then
+        for f in *.local.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
+    fi
 
-if [[ ! -f "$CFG" ]]; then
-    echo ""
-    echo "  [ERROR]  Config not found: $CFG"
-    echo ""
-    exit 1
-fi
+    if [[ -z "$CFG" ]]; then
+        echo ""
+        echo "  [ERROR]  No config file found. Use inline params or create *.remote.ini"
+        echo "  Config:  --config=file.ini  or place *.remote.ini in current folder"
+        echo "  Inline:  --user=name --server=host --ssh_key=path --local_dir=path --remote_dir=path"
+        echo ""
+        exit 1
+    fi
 
-# =============================================================
-# List profiles
-# =============================================================
-if [[ "$CMD" == "list" ]]; then
-    echo ""
-    echo "  Config: $CFG"
-    python3 - "$CFG" <<'PYEOF'
-import json, sys
-with open(sys.argv[1]) as f:
-    c = json.load(f)
-default = c.get("default_profile", "")
-print(f"  Profiles (default: {default}):")
-for name, p in c.get("profiles", {}).items():
-    mark = "*" if name == default else " "
-    print(f"  {mark} {name:<20} - {p.get('description', '')}")
-PYEOF
-    echo ""
-    exit 0
-fi
+    if [[ ! -f "$CFG" ]]; then
+        echo ""
+        echo "  [ERROR]  Config not found: $CFG"
+        echo ""
+        exit 1
+    fi
 
-# =============================================================
-# Load profile from JSON via python3
-# =============================================================
-if [[ -z "$PROFILE" ]]; then
-    PROFILE=$(python3 -c "import json; print(json.load(open('$CFG')).get('default_profile',''))" 2>/dev/null)
-fi
+    # List profiles
+    if [[ "$CMD" == "list" ]]; then
+        _default=""
+        while IFS= read -r line; do
+            line="${line#"${line%%[! ]*}"}"
+            [[ -z "$line" || "$line" == \#* || "$line" == \;* ]] && continue
+            [[ "$line" == \[* ]] && break
+            key="${line%%=*}"; val="${line#*=}"
+            [[ "${key,,}" == "default_profile" ]] && _default="$val"
+        done < "$CFG"
+        echo ""
+        echo "  Config: $CFG"
+        echo "  Profiles (default: $_default):"
+        _cur_name="" _cur_desc=""
+        while IFS= read -r line; do
+            line="${line#"${line%%[! ]*}"}"
+            [[ -z "$line" || "$line" == \#* || "$line" == \;* ]] && continue
+            if [[ "$line" == \[* ]]; then
+                if [[ -n "$_cur_name" ]]; then
+                    _mark=" "; [[ "$_cur_name" == "$_default" ]] && _mark="*"
+                    printf "  %s %-20s - %s\n" "$_mark" "$_cur_name" "$_cur_desc"
+                fi
+                _cur_name="${line:1:${#line}-2}"; _cur_desc=""
+            else
+                key="${line%%=*}"; val="${line#*=}"
+                [[ "${key,,}" == "description" ]] && _cur_desc="$val"
+            fi
+        done < "$CFG"
+        if [[ -n "$_cur_name" ]]; then
+            _mark=" "; [[ "$_cur_name" == "$_default" ]] && _mark="*"
+            printf "  %s %-20s - %s\n" "$_mark" "$_cur_name" "$_cur_desc"
+        fi
+        echo ""
+        exit 0
+    fi
 
-if [[ -z "$PROFILE" ]]; then
-    echo ""
-    echo "  [ERROR]  No profile specified and no default_profile set in config."
-    echo "  Use --profile=name or add \"default_profile\" to config."
-    echo "  Run --list to see available profiles."
-    echo ""
-    exit 1
-fi
+    # Get default_profile (top-level, before any section)
+    if [[ -z "$PROFILE" ]]; then
+        while IFS= read -r line; do
+            line="${line#"${line%%[! ]*}"}"
+            [[ -z "$line" || "$line" == \#* || "$line" == \;* ]] && continue
+            [[ "$line" == \[* ]] && break
+            key="${line%%=*}"; val="${line#*=}"
+            [[ "${key,,}" == "default_profile" ]] && PROFILE="$val"
+        done < "$CFG"
+    fi
 
-VARS_TMP=$(mktemp)
-python3 - "$CFG" "$PROFILE" > "$VARS_TMP" <<'PYEOF'
-import json, sys
-cfg, profile = sys.argv[1], sys.argv[2]
-with open(cfg) as f:
-    c = json.load(f)
-p = c.get("profiles", {}).get(profile)
-if not p:
-    sys.exit(1)
-for k, v in [
-    ("PROFILE_DESC", p.get("description", "")),
-    ("RUSER",        p.get("user",        "")),
-    ("SERVER",       p.get("server",      "")),
-    ("SSH_KEY",      p.get("ssh_key",     "")),
-    ("LOCAL_DIR",    p.get("local_dir",   "")),
-    ("REMOTE_DIR",   p.get("remote_dir",  "")),
-    ("DEPLOY_HINT",  p.get("deploy_hint", "")),
-]:
-    v = v.replace("'", "'\\''")
-    print(f"{k}='{v}'")
-PYEOF
+    if [[ -z "$PROFILE" ]]; then
+        echo ""
+        echo "  [ERROR]  No profile specified and no default_profile in config."
+        echo "  Use --profile=name or add default_profile=name to config."
+        echo "  Run --list to see available profiles."
+        echo ""
+        exit 1
+    fi
 
-if [[ $? -ne 0 ]]; then
-    echo ""
-    echo "  [ERROR]  Profile not found in config: $PROFILE"
-    echo "  Run --list to see available profiles."
-    echo ""
-    rm -f "$VARS_TMP"
-    exit 1
-fi
-source "$VARS_TMP"
-rm -f "$VARS_TMP"
+    # Load profile section
+    _in_profile=0
+    while IFS= read -r line; do
+        line="${line#"${line%%[! ]*}"}"
+        [[ -z "$line" || "$line" == \#* || "$line" == \;* ]] && continue
+        if [[ "$line" == "[$PROFILE]" ]]; then
+            _in_profile=1; continue
+        fi
+        [[ "$line" == \[* ]] && { _in_profile=0; continue; }
+        [[ $_in_profile -eq 0 ]] && continue
+        key="${line%%=*}"; val="${line#*=}"
+        case "${key,,}" in
+            user)        RUSER="$val" ;;
+            server)      SERVER="$val" ;;
+            ssh_key)     SSH_KEY="$val" ;;
+            local_dir)   LOCAL_DIR="$val" ;;
+            remote_dir)  REMOTE_DIR="$val" ;;
+            description) PROFILE_DESC="$val" ;;
+            deploy_hint) DEPLOY_HINT="$val" ;;
+        esac
+    done < "$CFG"
+
+    if [[ -z "$RUSER" ]]; then
+        echo ""
+        echo "  [ERROR]  Profile not found in config: $PROFILE"
+        echo "  Run --list to see available profiles."
+        echo ""
+        exit 1
+    fi
+
+fi  # end config mode
 
 # expand ~ in SSH_KEY
 SSH_KEY="${SSH_KEY/#\~/$HOME}"
@@ -172,9 +214,13 @@ SSH_KEY="${SSH_KEY/#\~/$HOME}"
 # =============================================================
 echo ""
 echo "  ============================================"
-echo "   Profile : $PROFILE  ($PROFILE_DESC)"
+if [[ -n "$PROFILE" ]]; then
+    echo "   Profile : $PROFILE  ($PROFILE_DESC)"
+else
+    echo "   Mode    : inline"
+fi
 echo "   Command : $CMD"
-echo "   Config  : $CFG"
+[[ -n "$CFG" ]] && echo "   Config  : $CFG"
 echo "  ============================================"
 echo "   Server  : $RUSER@$SERVER"
 echo "   SSH key : $SSH_KEY"

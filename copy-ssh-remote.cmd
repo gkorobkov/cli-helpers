@@ -1,88 +1,115 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 rem =============================================================
 rem copy-ssh-remote.cmd - copy project to remote server via SSH/scp
 rem
-rem  Config: *.local.json in current folder (not in git)
-rem  Template: copy-remote.local.example.json
+rem  Config: *.remote.ini or *.local.ini in current folder (not in git)
+rem  Requires: ssh, scp
 rem
-rem  Parameters (all optional, named, any order):
-rem    /config:path.json    config file  (default: first *.local.json in current dir)
-rem    /profile:name        profile name (default: default_profile from config)
-rem    /copy                run copy     (default: check only)
-rem    /list                list available profiles and exit
+rem  Two modes:
+rem
+rem  1. Config file:
+rem       /config:file.ini    config file  (default: first *.remote.ini)
+rem       /profile:name       profile      (default: default_profile from config)
+rem       /list               list profiles and exit
+rem
+rem  2. Inline (no config file needed):
+rem       /user:name          SSH user
+rem       /server:host        SSH server
+rem       /ssh_key:path       SSH key file
+rem       /local_dir:path     local folder
+rem       /remote_dir:path    remote folder
+rem       /deploy_hint:cmd    (optional) shown after copy
+rem
+rem  Common:
+rem       /copy               run copy (default: check only)
+rem       /check              check only
 rem
 rem  Examples:
 rem    copy-ssh-remote.cmd
 rem    copy-ssh-remote.cmd /copy
-rem    copy-ssh-remote.cmd /profile:ai-agent
 rem    copy-ssh-remote.cmd /profile:ai-agent /copy
-rem    copy-ssh-remote.cmd /config:C:\other\config.json /profile:ai-agent /copy
-rem
+rem    copy-ssh-remote.cmd /config:C:\other\cfg.ini /profile:ai-agent /copy
+rem    copy-ssh-remote.cmd /user:me /server:host /ssh_key:C:\key /local_dir:C:\proj /remote_dir:/home/me/proj /copy
 rem =============================================================
-rem  Config file format (save as *.local.json, e.g. copy-remote.local.json):
+rem  Config file format (save as *.remote.ini):
 rem
-rem  {
-rem    "default_profile": "my-project",
-rem    "profiles": {
-rem      "my-project": {
-rem        "description": "My Project - myserver.com",
-rem        "user":        "myuser",
-rem        "server":      "myserver.com",
-rem        "ssh_key":     "C:\\Users\\Me\\.ssh\\id_rsa",
-rem        "local_dir":   "C:\\Projects\\my-project",
-rem        "remote_dir":  "/home/myuser/my-project",
-rem        "deploy_hint": "cd /home/myuser/my-project && docker compose up -d"
-rem      },
-rem      "another-project": {
-rem        "description": "Another Project - myserver.com",
-rem        "user":        "myuser",
-rem        "server":      "myserver.com",
-rem        "ssh_key":     "C:\\Users\\Me\\.ssh\\id_rsa",
-rem        "local_dir":   "C:\\Projects\\another-project",
-rem        "remote_dir":  "/home/myuser/another-project",
-rem        "deploy_hint": "cd /home/myuser/another-project && npm start"
-rem      }
-rem    }
-rem  }
+rem    default_profile=my-project
+rem
+rem    [my-project]
+rem    description=My Project - myserver.com
+rem    user=myuser
+rem    server=myserver.com
+rem    ssh_key=C:\Users\Me\.ssh\id_rsa
+rem    local_dir=C:\Projects\my-project
+rem    remote_dir=/home/myuser/my-project
+rem    deploy_hint=cd /home/myuser/my-project && docker compose up -d
+rem
+rem    [another-project]
+rem    description=Another Project - myserver.com
+rem    user=myuser
+rem    server=myserver.com
+rem    ssh_key=C:\Users\Me\.ssh\id_rsa
+rem    local_dir=C:\Projects\another-project
+rem    remote_dir=/home/myuser/another-project
+rem    deploy_hint=cd /home/myuser/another-project && npm start
 rem =============================================================
 
 set "CMD=check"
 set "PROFILE="
 set "CFG="
+set "RUSER="
+set "SERVER="
+set "SSH_KEY="
+set "LOCAL_DIR="
+set "REMOTE_DIR="
+set "DEPLOY_HINT="
+set "PROFILE_DESC="
 
 rem =============================================================
-rem Parse named arguments (any order)
+rem Parse arguments
 rem =============================================================
 :parse_args
 if "%~1"=="" goto :args_done
 set "ARG=%~1"
 
-if /i "%ARG:~0,8%"=="/config:"  ( set "CFG=%ARG:~8%"     & shift & goto :parse_args )
-if /i "%ARG:~0,9%"=="/profile:" ( set "PROFILE=%ARG:~9%" & shift & goto :parse_args )
-if /i "%ARG%"=="/copy"          ( set "CMD=copy"          & shift & goto :parse_args )
-if /i "%ARG%"=="/check"         ( set "CMD=check"         & shift & goto :parse_args )
-if /i "%ARG%"=="/list"          ( set "CMD=list"          & shift & goto :parse_args )
+if /i "%ARG:~0,8%"=="/config:"      ( set "CFG=%ARG:~8%"          & shift & goto :parse_args )
+if /i "%ARG:~0,9%"=="/profile:"     ( set "PROFILE=%ARG:~9%"       & shift & goto :parse_args )
+if /i "%ARG:~0,6%"=="/user:"        ( set "RUSER=%ARG:~6%"         & shift & goto :parse_args )
+if /i "%ARG:~0,8%"=="/server:"      ( set "SERVER=%ARG:~8%"        & shift & goto :parse_args )
+if /i "%ARG:~0,9%"=="/ssh_key:"     ( set "SSH_KEY=%ARG:~9%"       & shift & goto :parse_args )
+if /i "%ARG:~0,11%"=="/local_dir:"  ( set "LOCAL_DIR=%ARG:~11%"    & shift & goto :parse_args )
+if /i "%ARG:~0,12%"=="/remote_dir:" ( set "REMOTE_DIR=%ARG:~12%"   & shift & goto :parse_args )
+if /i "%ARG:~0,13%"=="/deploy_hint:"( set "DEPLOY_HINT=%ARG:~13%"  & shift & goto :parse_args )
+if /i "%ARG%"=="/copy"              ( set "CMD=copy"               & shift & goto :parse_args )
+if /i "%ARG%"=="/check"             ( set "CMD=check"              & shift & goto :parse_args )
+if /i "%ARG%"=="/list"              ( set "CMD=list"               & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
-echo  Valid:   /config:file.json  /profile:name  /check  /copy  /list
+echo  Valid:   /config:  /profile:  /user:  /server:  /ssh_key:  /local_dir:  /remote_dir:  /deploy_hint:  /check  /copy  /list
 echo.
 exit /b 1
 
 :args_done
 
 rem =============================================================
-rem Find config file
+rem Inline mode: use params directly if all required ones provided
+rem =============================================================
+if defined RUSER if defined SERVER if defined SSH_KEY if defined LOCAL_DIR if defined REMOTE_DIR goto :run_check
+
+rem =============================================================
+rem Config file mode
 rem =============================================================
 if "%CFG%"=="" (
-    for %%F in ("*.local.json") do if not defined CFG set "CFG=%%~fF"
+    for %%F in ("*.remote.ini") do if not defined CFG set "CFG=%%~fF"
+    for %%F in ("*.local.ini")  do if not defined CFG set "CFG=%%~fF"
 )
 if "%CFG%"=="" (
     echo.
-    echo  [ERROR]  No config file found in current folder.
-    echo  Create a *.local.json file (see copy-remote.local.example.json)
-    echo  or use /config:path.json
+    echo  [ERROR]  No config file found. Use inline params or create *.remote.ini
+    echo  Config:  /config:file.ini  or place *.remote.ini in current folder
+    echo  Inline:  /user:name /server:host /ssh_key:path /local_dir:path /remote_dir:path
     echo.
     exit /b 1
 )
@@ -95,46 +122,62 @@ if not exist "%CFG%" (
 
 if /i "%CMD%"=="list" goto :show_list
 
-rem =============================================================
-rem Load profile from JSON via PowerShell
-rem =============================================================
+rem --- Get default_profile (top-level, before any section) ---
 if "%PROFILE%"=="" (
-    for /f "tokens=*" %%V in ('powershell -NoProfile -Command "(Get-Content '%CFG%' -Raw | ConvertFrom-Json).default_profile" 2^>nul') do set "PROFILE=%%V"
+    set "_IN_SECT=0"
+    for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
+        set "_K=%%A"
+        if "!_K:~0,1!"=="[" ( set "_IN_SECT=1" ) else (
+            if "!_IN_SECT!"=="0" if /i "!_K!"=="default_profile" if not defined PROFILE set "PROFILE=%%B"
+        )
+    )
 )
 if "%PROFILE%"=="" (
     echo.
-    echo  [ERROR]  No profile specified and no default_profile set in config.
-    echo  Use /profile:name or add "default_profile" to config.
+    echo  [ERROR]  No profile specified and no default_profile in config.
+    echo  Use /profile:name or add default_profile=name to config.
     echo  Run /list to see available profiles.
     echo.
     exit /b 1
 )
 
-set "VARS_TMP=%TEMP%\ssh_profile.tmp"
-powershell -NoProfile -Command ^
-    "$c=Get-Content '%CFG%' -Raw|ConvertFrom-Json; $p=$c.profiles.'%PROFILE%'; if(-not $p){exit 1}; ^
-    @('PROFILE_DESC='+$p.description,'RUSER='+$p.user,'SERVER='+$p.server, ^
-      'SSH_KEY='+$p.ssh_key,'LOCAL_DIR='+$p.local_dir,'REMOTE_DIR='+$p.remote_dir, ^
-      'DEPLOY_HINT='+$p.deploy_hint)" > "%VARS_TMP%" 2>nul
+rem --- Load profile section ---
+set "_IN_PROF=0"
+for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
+    set "_K=%%A"
+    set "_V=%%B"
+    if "!_K:~0,1!"=="[" (
+        if /i "!_K!"=="[%PROFILE%]" ( set "_IN_PROF=1" ) else ( set "_IN_PROF=0" )
+    ) else if "!_IN_PROF!"=="1" (
+        if /i "!_K!"=="user"        set "RUSER=!_V!"
+        if /i "!_K!"=="server"      set "SERVER=!_V!"
+        if /i "!_K!"=="ssh_key"     set "SSH_KEY=!_V!"
+        if /i "!_K!"=="local_dir"   set "LOCAL_DIR=!_V!"
+        if /i "!_K!"=="remote_dir"  set "REMOTE_DIR=!_V!"
+        if /i "!_K!"=="description" set "PROFILE_DESC=!_V!"
+        if /i "!_K!"=="deploy_hint" set "DEPLOY_HINT=!_V!"
+    )
+)
 
-if %ERRORLEVEL% neq 0 (
+if "%RUSER%"=="" (
     echo.
     echo  [ERROR]  Profile not found in config: %PROFILE%
     echo  Run /list to see available profiles.
     echo.
-    if exist "%VARS_TMP%" del "%VARS_TMP%"
     exit /b 1
 )
-for /f "tokens=1,* delims==" %%A in (%VARS_TMP%) do set "%%A=%%B"
-del "%VARS_TMP%" 2>nul
 
 rem =============================================================
 :run_check
 echo.
 echo  ============================================
-echo   Profile : %PROFILE%  (%PROFILE_DESC%)
+if defined PROFILE (
+    echo   Profile : %PROFILE%  ^(%PROFILE_DESC%^)
+) else (
+    echo   Mode    : inline
+)
 echo   Command : %CMD%
-echo   Config  : %CFG%
+if defined CFG echo   Config  : %CFG%
 echo  ============================================
 echo   Server  : %RUSER%@%SERVER%
 echo   SSH key : %SSH_KEY%
@@ -163,7 +206,7 @@ if exist "%SSH_KEY%" (
 echo  Checking SSH to %RUSER%@%SERVER%...
 set "SSH_RESULT="
 set "SSH_TMP=%TEMP%\ssh_chk.tmp"
-ssh -i %SSH_KEY% -o ConnectTimeout=5 %RUSER%@%SERVER% "test -d %REMOTE_DIR% && echo FOUND || echo MISSING" > "%SSH_TMP%" 2>&1
+ssh -i "%SSH_KEY%" -o ConnectTimeout=5 %RUSER%@%SERVER% "test -d %REMOTE_DIR% && echo FOUND || echo MISSING" > "%SSH_TMP%" 2>&1
 if exist "%SSH_TMP%" ( set /p SSH_RESULT=< "%SSH_TMP%" & del "%SSH_TMP%" 2>nul )
 
 if not defined SSH_RESULT (
@@ -195,13 +238,13 @@ echo.
 
 if "%REMOTE_MISSING%"=="1" (
     echo  Creating remote folder: %REMOTE_DIR%
-    ssh -i %SSH_KEY% %RUSER%@%SERVER% "mkdir -p %REMOTE_DIR%"
+    ssh -i "%SSH_KEY%" %RUSER%@%SERVER% "mkdir -p %REMOTE_DIR%"
     if %ERRORLEVEL% neq 0 ( echo  [FAILED] Could not create remote folder. & exit /b 1 )
     echo  [OK]     Remote folder created.
     echo.
 )
 
-scp -i %SSH_KEY% -r "%LOCAL_DIR%\." %RUSER%@%SERVER%:%REMOTE_DIR%/
+scp -i "%SSH_KEY%" -r "%LOCAL_DIR%\." %RUSER%@%SERVER%:%REMOTE_DIR%/
 
 if %ERRORLEVEL% equ 0 (
     echo.
@@ -218,12 +261,39 @@ rem =============================================================
 :show_list
 echo.
 echo  Config: %CFG%
-powershell -NoProfile -Command ^
-    "$c=Get-Content '%CFG%' -Raw|ConvertFrom-Json; ^
-    Write-Host '  Profiles (default: '+$c.default_profile+'):'; ^
-    $c.profiles.PSObject.Properties | ForEach-Object { ^
-        $mark = if ($_.Name -eq $c.default_profile) {'*'} else {' '}; ^
-        Write-Host (' ' + $mark + ' {0,-20} - {1}' -f $_.Name, $_.Value.description) ^
-    }"
+
+rem Find default_profile
+set "_DEF="
+set "_IN_SECT=0"
+for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
+    set "_K=%%A"
+    if "!_K:~0,1!"=="[" ( set "_IN_SECT=1" ) else (
+        if "!_IN_SECT!"=="0" if /i "!_K!"=="default_profile" set "_DEF=%%B"
+    )
+)
+
+echo  Profiles (default: %_DEF%):
+set "_CUR_NAME="
+set "_CUR_DESC="
+for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
+    set "_K=%%A"
+    set "_V=%%B"
+    if "!_K:~0,1!"=="[" (
+        if defined _CUR_NAME (
+            set "_MARK= "
+            if /i "!_CUR_NAME!"=="!_DEF!" set "_MARK=*"
+            echo   !_MARK! !_CUR_NAME! - !_CUR_DESC!
+        )
+        set "_CUR_NAME=!_K:~1,-1!"
+        set "_CUR_DESC="
+    ) else if defined _CUR_NAME (
+        if /i "!_K!"=="description" set "_CUR_DESC=!_V!"
+    )
+)
+if defined _CUR_NAME (
+    set "_MARK= "
+    if /i "!_CUR_NAME!"=="!_DEF!" set "_MARK=*"
+    echo   !_MARK! !_CUR_NAME! - !_CUR_DESC!
+)
 echo.
 goto :eof
