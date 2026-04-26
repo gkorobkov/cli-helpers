@@ -1,4 +1,23 @@
 #!/usr/bin/env bash
+# git-setup.sh — Shows or updates global Git user name and email.
+#
+# Shows current git config user.name and user.email.
+# If arguments are passed, updates the corresponding global Git config values first.
+#
+# Dependencies:
+#   git - https://git-scm.com/downloads
+#         Linux: sudo apt install git  /  brew install git (macOS)
+#
+# Usage:
+#   ./git-setup.sh [user_name] [user_email]
+#
+# Parameters:
+#   user_name  : Optional. Git user name.
+#   user_email : Optional. Git user email.
+#
+# Examples:
+#   ./git-setup.sh
+#   ./git-setup.sh "User Name" user@example.com
 
 set -u
 

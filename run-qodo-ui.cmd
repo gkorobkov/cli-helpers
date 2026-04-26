@@ -1,5 +1,18 @@
-rem https://docs.qodo.ai/qodo-documentation/qodo-command/getting-started/setup-and-quickstart
-rem npm install -g @qodo/command
-rem qodo login
-
+@echo off
+:: run-qodo-ui.cmd — Starts Qodo in UI mode.
+::
+:: Runs: start qodo --ui
+::
+:: Dependencies:
+::   Node.js - https://nodejs.org/
+::             Windows: winget install OpenJS.NodeJS
+::   Qodo    - npm install -g @qodo/command
+::             Login: qodo login
+::             Docs: https://docs.qodo.ai/qodo-documentation/qodo-command/getting-started/setup-and-quickstart
+::
+:: Usage:
+::   run-qodo-ui.cmd
+::
+:: Examples:
+::   run-qodo-ui.cmd
 start qodo --ui

@@ -1,12 +1,37 @@
 #!/usr/bin/env bash
 
-# Usage: current-path.sh [list|add|delete]
-# No parameter: print YES if the current directory is in the current PATH, otherwise NO.
-# list        : print the current PATH entries line by line.
-# add         : add the current directory to the shell profile if it is missing.
-# delete      : remove the current directory from the shell profile if it is present.
-# Note        : add/delete update the current shell only when the script is sourced.
-# Output      : always prints the current directory first so it is clear which path is being checked.
+# current-path.sh — Checks, lists, adds, or removes the current directory in PATH.
+#
+# Inspects and modifies the persistent PATH in the shell profile (~/.bashrc etc.).
+# Always prints the current working directory first for clarity.
+# add/delete take effect in the current session only when the script is sourced.
+#
+# Dependencies:
+#   bash 3.2+ - standard on Linux and macOS (no install needed)
+#
+# Usage:
+#   ./current-path.sh [list|add|delete]
+#
+# Modes:
+#   (none)  : Print YES/NO — whether the current directory is in PATH.
+#   list    : Print all PATH entries from the current shell session.
+#   add     : Add the current directory to the shell profile if missing.
+#   delete  : Remove the current directory from the shell profile if present.
+#
+# Functions:
+#   detect_profile_file()      : Detects the shell profile file (bashrc, zshrc, profile).
+#   contains_current_path()    : Checks if current dir is in PATH.
+#   list_current_path()        : Prints each PATH entry.
+#   remove_current_from_path() : Returns PATH string with current dir removed.
+#   is_sourced()               : Detects if script is sourced or run as subprocess.
+#
+# Note: Use "source ./current-path.sh add" to apply changes to the current session.
+#
+# Examples:
+#   ./current-path.sh
+#   ./current-path.sh list
+#   ./current-path.sh add
+#   source ./current-path.sh delete
 
 set -u
 

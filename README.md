@@ -10,7 +10,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
 - [Command Line Utilities](#command-line-utilities)
   - [Checks, lists, adds, or removes the current directory in `PATH`.](#checks-lists-adds-or-removes-the-current-directory-in-path)
   - [Shows, grants, or removes Windows file access permissions.](#shows-grants-or-removes-windows-file-access-permissions)
-- [SSH / Remote Utilities](#ssh--remote-utilities)
+- [SSH / Remote Utilities](#ssh-remote-utilities)
   - [Copies a project folder to a remote server via SSH/scp.](#copies-a-project-folder-to-a-remote-server-via-sshscp)
 - [Git Utilities](#git-utilities)
   - [Shows or updates global Git user name and email.](#shows-or-updates-global-git-user-name-and-email)
@@ -23,6 +23,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
   - [Creates or updates TOC in MD (Markdown) files from the command prompt.](#creates-or-updates-toc-in-md-markdown-files-from-the-command-prompt)
   - [Creates or updates TOC in MD (Markdown) files with PowerShell.](#creates-or-updates-toc-in-md-markdown-files-with-powershell)
   - [Creates or updates TOC in MD (Markdown) files with Python.](#creates-or-updates-toc-in-md-markdown-files-with-python)
+  - [Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).](#creates-or-updates-toc-in-md-markdown-files-with-bash-android--linux)
 - [Python Utilities](#python-utilities)
   - [Activates the local Python virtual environment.](#activates-the-local-python-virtual-environment)
   - [Creates a local Python virtual environment in `.venv`.](#creates-a-local-python-virtual-environment-in-venv)
@@ -31,7 +32,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
   - [Starts Jupyter Notebook in the current directory.](#starts-jupyter-notebook-in-the-current-directory)
   - [Starts Qodo in UI mode.](#starts-qodo-in-ui-mode)
 - [Other Utilities](#other-utilities)
-
+  
 # Command Line Utilities
 
 ## Checks, lists, adds, or removes the current directory in `PATH`.
@@ -126,47 +127,67 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
 
 Files: `copy-ssh-remote.cmd`, `copy-ssh-remote.sh`
 
-Reads connection details from a `*.local.json` config file in the current folder, verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
-Without `/copy` (or `--copy`) the script performs a dry check only and prints what would happen.
-Multiple named profiles are supported; the active profile is selected with `/profile:name` or defaults to `default_profile` in the config.
+Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
+Without `/copy` (or `--copy`) the script performs a connectivity check only.
+Supports two modes: **config file** (named profiles in a `*.remote.ini` file) or **inline** (all connection details passed directly as parameters, no config file needed).
 
 General form:
 
 ```bat
-:: Windows CMD / BAT
-copy-ssh-remote.cmd [/config:path.json] [/profile:name] [/check|/copy|/list]
+:: Windows CMD / BAT — config file mode
+copy-ssh-remote.cmd [/config:file.ini] [/profile:name] [/check|/copy|/list]
+```
+
+```bat
+:: Windows CMD / BAT — inline mode (no config file)
+copy-ssh-remote.cmd /user:name /server:host /local_dir:path /remote_dir:path [/ssh_key:path] [/copy]
 ```
 
 ```bash
-# Linux / bash
-./copy-ssh-remote.sh [--config=path.json] [--profile=name] [--check|--copy|--list]
+# Linux / bash — config file mode
+./copy-ssh-remote.sh [--config=file.ini] [--profile=name] [--check|--copy|--list]
+```
+
+```bash
+# Linux / bash — inline mode (no config file)
+./copy-ssh-remote.sh --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path] [--copy]
 ```
 
 Parameters:
-- No arguments: check mode using the first `*.local.json` in the current folder and the default profile.
-- `/config:path.json` / `--config=path.json`: Optional. Path to the config file.
+- No arguments: check mode using the first `*.remote.ini` in the current folder and the default profile.
+- `/config:file.ini` / `--config=file.ini`: Optional. Path to the config file.
 - `/profile:name` / `--profile=name`: Optional. Profile to use. Defaults to `default_profile` in config.
+- `/user:name` / `--user=name`: Inline mode. SSH user name.
+- `/server:host` / `--server=host`: Inline mode. SSH server host.
+- `/ssh_key:path` / `--ssh_key=path`: Optional. Path to SSH private key.
+- `/local_dir:path` / `--local_dir=path`: Inline mode. Local folder to copy.
+- `/remote_dir:path` / `--remote_dir=path`: Inline mode. Remote destination path.
+- `/deploy_hint:cmd` / `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
 - `/check` / `--check`: Optional. Verify connectivity without copying (default mode).
 - `/copy` / `--copy`: Optional. Run the actual `scp` copy after checks pass.
 - `/list` / `--list`: Optional. Print all available profiles and exit.
 
-Config file format (save as `*.local.json`, e.g. `copy-remote.local.json`; excluded from git):
+Config file format (save as `*.remote.ini`, e.g. `copy-remote.remote.ini`; excluded from git):
 
-```json
-{
-  "default_profile": "my-project",
-  "profiles": {
-    "my-project": {
-      "description": "My Project - myserver.com",
-      "user":        "myuser",
-      "server":      "myserver.com",
-      "ssh_key":     "C:\\Users\\Me\\.ssh\\id_rsa",
-      "local_dir":   "C:\\Projects\\my-project",
-      "remote_dir":  "/home/myuser/my-project",
-      "deploy_hint": "cd /home/myuser/my-project && docker compose up -d"
-    }
-  }
-}
+```ini
+default_profile=my-project
+
+[my-project]
+description=My Project - myserver.com
+user=myuser
+server=myserver.com
+ssh_key=C:\Users\Me\.ssh\id_rsa
+local_dir=C:\Projects\my-project
+remote_dir=/home/myuser/my-project
+deploy_hint=cd /home/myuser/my-project && docker compose up -d
+
+[another-project]
+description=Another Project - myserver.com
+user=myuser
+server=myserver.com
+ssh_key=C:\Users\Me\.ssh\id_rsa
+local_dir=C:\Projects\another-project
+remote_dir=/home/myuser/another-project
 ```
 
 Examples:
@@ -184,6 +205,11 @@ copy-ssh-remote.cmd /copy
 ```bat
 :: Windows CMD / BAT — copy using a named profile
 copy-ssh-remote.cmd /profile:ai-agent /copy
+```
+
+```bat
+:: Windows CMD / BAT — inline mode, no config file
+copy-ssh-remote.cmd /user:me /server:myhost /local_dir:C:\proj /remote_dir:/home/me/proj /copy
 ```
 
 ```bash
@@ -398,16 +424,18 @@ File: `update-md-toc.cmd`
 
 Windows CMD wrapper around `update-md-toc.ps1`.
 Parses CMD-style arguments, passes them through environment variables, and starts the PowerShell implementation.
+Positional file arguments are supported in addition to `--files`.
 
 General form:
 
 ```bat
 :: Windows CMD / BAT
-update-md-toc.cmd [--files <file1> [file2 ...]] [--dry-run] [--toc-depth hN] [--help]
+update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN] [--help]
 ```
 
 Parameters:
-- `--files <file1> [file2 ...]`: Optional. Process only the listed Markdown files.
+- `FILE`: Optional. One or more Markdown files to process (positional).
+- `--files FILE ...`: Optional. Alternative explicit file list.
 - `--dry-run`: Optional. Print the generated TOC without writing changes.
 - `--toc-depth hN`: Optional. Limit generated entries to `H1-HN`.
 - `--help`: Optional. Show usage through the PowerShell script.
@@ -421,7 +449,12 @@ update-md-toc.cmd
 
 ```bat
 :: Windows CMD / BAT
-update-md-toc.cmd --files README.md docs.md --dry-run --toc-depth h3
+update-md-toc.cmd setup.md
+```
+
+```bat
+:: Windows CMD / BAT
+update-md-toc.cmd README.md docs.md --dry-run --toc-depth h3
 ```
 
 
@@ -431,7 +464,7 @@ File: `update-md-toc.ps1`
 
 PowerShell implementation of the Markdown TOC updater.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
-Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, and `Table of contents`.
+Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
 
 General form:
 
@@ -472,7 +505,7 @@ File: `update-md-toc.py`
 
 Python implementation of the Markdown TOC updater.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
-Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, and `Table of contents`.
+Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
 
 General form:
 
@@ -502,6 +535,54 @@ python update-md-toc.py
 ```bash
 # Linux / bash
 python update-md-toc.py --files README.md --dry-run --toc-depth h3
+```
+
+## Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).
+
+File: `update-md-toc.sh`
+
+Pure bash implementation of the Markdown TOC updater — no Python or PowerShell required.
+Works on Android (Termux), Linux, and macOS out of the box.
+Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
+Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
+
+> **Note (Termux / Android):** For correct Unicode slugs from Russian headings, set `LANG=C.UTF-8`:
+> ```bash
+> echo 'export LANG=C.UTF-8' >> ~/.bashrc
+> ```
+
+Dependencies:
+- `bash 4.0+` — pre-installed in Termux (no extra install needed)
+- `sed` — pre-installed in Termux
+
+General form:
+
+```bash
+# bash (Android / Termux / Linux)
+./update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]
+```
+
+Parameters:
+- `FILE`: Optional. One or more Markdown files (positional).
+- `--files FILE ...`: Optional. Alternative explicit file list.
+- `--dry-run`: Optional. Print changes without writing files.
+- `--toc-depth hN`: Optional. Limit generated entries to `H1-HN`.
+
+Examples:
+
+```bash
+# bash (Android / Termux / Linux)
+./update-md-toc.sh
+```
+
+```bash
+# bash (Android / Termux / Linux)
+./update-md-toc.sh README.md
+```
+
+```bash
+# bash (Android / Termux / Linux)
+./update-md-toc.sh README.md --dry-run --toc-depth h3
 ```
 
 

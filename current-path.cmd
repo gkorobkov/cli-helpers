@@ -1,11 +1,30 @@
 @echo off
-rem Usage: current-path.cmd [list^|add^|delete]
-rem No parameter: print YES if the current directory is in the current PATH, otherwise NO.
-rem list        : print the current PATH entries line by line.
-rem add         : add the current directory to the user PATH if it is missing.
-rem delete      : remove the current directory from the user PATH if it is present.
-rem Note        : add/delete also update the current cmd.exe session. PowerShell keeps its own PATH snapshot.
-rem Output      : always prints the current directory first so it is clear which path is being checked.
+:: current-path.cmd — Checks, lists, adds, or removes the current directory in PATH.
+::
+:: Wraps PowerShell to inspect and modify the persistent user PATH.
+:: Always prints the current working directory first for clarity.
+:: add/delete also update the current cmd.exe session immediately.
+::
+:: Dependencies:
+::   PowerShell - built-in on Windows 10/11 (no install needed)
+::
+:: Usage:
+::   current-path.cmd [list|add|delete]
+::
+:: Modes:
+::   (none)  : Print YES/NO — whether the current directory is in PATH.
+::   list    : Print all PATH entries from the current cmd.exe session.
+::   add     : Add the current directory to persistent user PATH if missing.
+::   delete  : Remove the current directory from persistent user PATH if present.
+::
+:: Note: PowerShell keeps its own PATH snapshot; add/delete will not affect
+::       an open PowerShell session until it is restarted.
+::
+:: Examples:
+::   current-path.cmd
+::   current-path.cmd list
+::   current-path.cmd add
+::   current-path.cmd delete
 
 set "mode=%~1"
 if not defined mode set "mode=check"

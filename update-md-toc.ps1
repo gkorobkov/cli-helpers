@@ -1,3 +1,39 @@
+# =============================================================
+# update-md-toc.ps1 — Creates or updates TOC in Markdown files.
+#
+# Finds a TOC marker heading and replaces the block below it
+# (up to the next heading) with auto-generated anchor links.
+# Recognized markers: Оглавление, Оглавлние, TOC, Table of contents, Contents.
+#
+# Key functions:
+#   Show-Usage         : Prints usage line.
+#   Get-MarkdownLines  : Reads a file, normalizes line endings and strips BOM.
+#   Get-Headings       : Extracts headings while skipping fenced code blocks.
+#   Get-Slug           : Generates a GitHub-style anchor slug from heading text.
+#   Build-TocLines     : Produces the list of TOC bullet lines.
+#   Find-TocRange      : Locates the start/end line indices of the TOC block.
+#   Update-File        : Orchestrates read → generate → write for one file.
+#   Resolve-Targets    : Resolves the list of files to process.
+#   Resolve-TocLimits  : Parses -TocDepth (hN format) into min/max level ints.
+#
+# Dependencies:
+#   PowerShell 5.1+ - built-in on Windows 10/11 (no install needed)
+#
+# Usage:
+#   .\update-md-toc.ps1 [-Files <string[]>] [-DryRun] [-TocDepth hN] [-Help]
+#
+# Parameters:
+#   -Files <string[]> : Optional. Markdown files to process.
+#   -DryRun           : Optional. Show changes without writing.
+#   -TocDepth hN      : Optional. Limit entries to H1-HN (e.g. h2, h3).
+#   -Help             : Optional. Print usage.
+#   -FromCmdWrapper   : Internal. Used by update-md-toc.cmd.
+#
+# Examples:
+#   .\update-md-toc.ps1
+#   .\update-md-toc.ps1 -Files README.md
+#   .\update-md-toc.ps1 -Files README.md -DryRun -TocDepth h3
+# =============================================================
 param(
     [string[]]$Files = @(),
     [switch]$DryRun,
@@ -15,7 +51,8 @@ $TOC_START_HEADING_TEXTS = @(
     (-join [char[]](0x041E, 0x0433, 0x043B, 0x0430, 0x0432, 0x043B, 0x0435, 0x043D, 0x0438, 0x0435)),
     (-join [char[]](0x041E, 0x0433, 0x043B, 0x0430, 0x0432, 0x043B, 0x043D, 0x0438, 0x0435)),
     "TOC",
-    "Table of contents"
+    "Table of contents",
+    "Contents"
 )
 $TOC_START_HEADING_TEXT = $TOC_START_HEADING_TEXTS[0]
 $TARGET_FILE_GLOBS = @("*.md")
@@ -29,7 +66,7 @@ $FENCE_RE = '^\s*(```|~~~)'
 $UTF8_NO_BOM = [System.Text.UTF8Encoding]::new($false)
 
 function Show-Usage {
-    Write-Output "Usage: update-md-toc.cmd [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]"
+    Write-Output "Usage: update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]"
 }
 
 function Clean-HeadingText {
@@ -293,6 +330,12 @@ function Resolve-Targets {
     param([string[]]$Files)
 
     if ($Files.Count -gt 0) {
+        foreach ($f in $Files) {
+            if (-not (Test-Path $f -PathType Leaf)) {
+                Write-Output "Error: file not found: $f"
+                exit 2
+            }
+        }
         return [string[]]($Files | Sort-Object -Unique)
     }
 

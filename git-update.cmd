@@ -1,7 +1,36 @@
 @ECHO OFF
+:: git-update.cmd — Pulls the latest changes for a Git branch and optionally builds.
+::
+:: Updates a repository: optionally fetches, optionally checks out a branch,
+:: pulls from origin, and prints git status. Branch defaults to the current
+:: branch detected by git-branch-name.cmd if not specified.
+::
+:: Dependencies:
+::   git              - https://git-scm.com/downloads
+::                      Windows: winget install Git.Git
+::   git-branch-name.cmd - sibling script, must be in the same folder or PATH
+::
+:: Usage:
+::   git-update.cmd [sub_path] [branch_name]
+::
+:: Parameters:
+::   sub_path    : Optional. Repository folder. Defaults to current directory.
+::   branch_name : Optional. Branch to pull. Defaults to the current branch.
+::
+:: Environment variables:
+::   fetch_origin=true       : Run git fetch origin before pull.
+::   checkout_branch=true    : Run git checkout before pull.
+::   auto_stash=true         : Enable auto-stash behavior.
+::   build-after-update=true : Run a local build script after update.
+::   exitonfinish=true       : Exit the shell when done.
+::
+:: Examples:
+::   git-update.cmd
+::   git-update.cmd C:\work\my-repo main
+::   set fetch_origin=true && git-update.cmd
 
-rem set fetch_origin=true
-rem set checkout_branch=true
+:: set fetch_origin=true
+:: set checkout_branch=true
 
 set sub_path=%1
 if not defined sub_path set sub_path=%cd% 
@@ -23,7 +52,7 @@ title  Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 pushd . && (
 
 :gitStash
-rem echo.
+:: echo.
 if "%auto_stash%" equ "true" (
   echo "Auto stash on %date%_%time%" 
   rem git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
@@ -51,19 +80,19 @@ if "%fetch_origin%" equ "true" (
 
 ) && (
 
-rem call git reset --hard HEAD  ) && (
+:: call git reset --hard HEAD  ) && (
 echo.
-rem echo ************************************************
+:: echo ************************************************
 echo [ Running: git pull origin %branch_name% ]
-rem echo ************************************************
+:: echo ************************************************
 
 call git pull origin %branch_name% 
 ) && (
 
 echo.
-rem echo **************************************
+:: echo **************************************
 echo [ Running: git status -s -b -v ]
-rem echo **************************************
+:: echo **************************************
 
 call git status -s -b -v
   ) && (

@@ -1,4 +1,37 @@
 #!/usr/bin/env python3
+# =============================================================
+# update-md-toc.py — Creates or updates TOC in Markdown files.
+#
+# Finds a TOC marker heading and replaces the block below it
+# (up to the next heading) with auto-generated anchor links.
+# Recognized markers: Оглавление, Оглавлние, TOC, Table of contents, Contents.
+#
+# Key functions:
+#   parse_args()          : Parses CLI arguments.
+#   iter_headings()       : Yields headings while skipping fenced code blocks.
+#   slugify()             : Generates a GitHub-style anchor slug from heading text.
+#   build_toc_lines()     : Produces the list of TOC bullet lines.
+#   find_toc_range()      : Locates the start/end line indices of the TOC block.
+#   update_file()         : Orchestrates read → generate → write for one file.
+#   resolve_targets()     : Resolves the list of files to process.
+#   resolve_toc_limits()  : Parses --toc-depth (hN format) into min/max levels.
+#
+# Dependencies:
+#   Python 3.9+ - https://www.python.org/downloads/ (stdlib only, no packages needed)
+#
+# Usage:
+#   python update-md-toc.py [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]
+#
+# Parameters:
+#   --files FILE ...  : Optional. Markdown files to process.
+#   --dry-run         : Optional. Show changes without writing.
+#   --toc-depth hN    : Optional. Limit entries to H1-HN (e.g. h2, h3).
+#
+# Examples:
+#   python update-md-toc.py
+#   python update-md-toc.py --files README.md
+#   python update-md-toc.py --files README.md --dry-run --toc-depth h3
+# =============================================================
 from __future__ import annotations
 
 import argparse
@@ -16,6 +49,7 @@ TOC_START_HEADING_TEXTS = (
     "\u041e\u0433\u043b\u0430\u0432\u043b\u043d\u0438\u0435",
     "TOC",
     "Table of contents",
+    "Contents",
 )
 TOC_START_HEADING_TEXT = TOC_START_HEADING_TEXTS[0]
 TOC_START_HEADING_MARKERS = {item.casefold() for item in TOC_START_HEADING_TEXTS}
@@ -196,6 +230,10 @@ def update_file(
 def resolve_targets(files: list[str] | None) -> list[Path]:
     if files:
         targets = [Path(item) for item in files]
+        for path in targets:
+            if not path.is_file():
+                print(f"Error: file not found: {path}")
+                sys.exit(2)
     else:
         found: dict[Path, None] = {}
         for pattern in TARGET_FILE_GLOBS:

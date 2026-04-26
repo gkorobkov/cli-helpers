@@ -3,7 +3,12 @@
 # copy-ssh-remote.sh - copy project to remote server via SSH/scp
 #
 #  Config: *.remote.ini or *.local.ini in current folder (not in git)
-#  Requires: ssh, scp
+#
+#  Dependencies:
+#    ssh, scp  - OpenSSH (standard on Linux/macOS; on some distros: sudo apt install openssh-client)
+#
+#    rsync     - required only for folder sync (excludes .env and .gitignore files)
+#                sudo apt install rsync  /  brew install rsync  /  scoop install rsync
 #
 #  Two modes:
 #
@@ -16,8 +21,8 @@
 #       --user=name          SSH user
 #       --server=host        SSH server
 #       --ssh_key=path       SSH key file
-#       --local_dir=path     local folder
-#       --remote_dir=path    remote folder
+#       --from=path --to=path  local->remote pair (repeat for multiple)
+#       --local_dir=path --remote_dir=path  (legacy single pair)
 #       --deploy_hint=cmd    (optional) shown after copy
 #
 #  Common:
@@ -29,7 +34,9 @@
 #    ./copy-ssh-remote.sh --copy
 #    ./copy-ssh-remote.sh --profile=ai-agent --copy
 #    ./copy-ssh-remote.sh --config=/other/cfg.ini --profile=ai-agent --copy
-#    ./copy-ssh-remote.sh --user=myuser --server=myserver.com --ssh_key=~/.ssh/id_rsa --local_dir=/home/me/proj --remote_dir=/home/user/proj --copy
+#    ./copy-ssh-remote.sh --user=me --server=host --ssh_key=~/.ssh/id_rsa --from=/home/me/proj --to=/remote/proj --copy
+#    ./copy-ssh-remote.sh --user=me --server=host --from=/home/me/a.txt --to=/remote/a.txt --from=/home/me/dir --to=/remote/dir --copy
+#    ./copy-ssh-remote.sh --user=me --server=host --local_dir=/home/me/proj --remote_dir=/remote/proj --copy
 # =============================================================
 #  Config file format (save as *.remote.ini):
 #
@@ -43,6 +50,11 @@
 #    local_dir=/home/me/projects/my-project
 #    remote_dir=/home/myuser/my-project
 #    deploy_hint=cd /home/myuser/my-project && docker compose up -d
+#    ; additional pairs (optional):
+#    from_1=/home/me/projects/config.txt
+#    to_1=/home/myuser/config.txt
+#    from_2=/home/me/projects/scripts
+#    to_2=/home/myuser/scripts
 #
 #    [another-project]
 #    description=Another Project - myserver.com
@@ -65,6 +77,14 @@ REMOTE_DIR=""
 DEPLOY_HINT=""
 PROFILE_DESC=""
 
+declare -a PAIR_LOCALS=()
+declare -a PAIR_REMOTES=()
+declare -a PAIR_IS_DIR=()
+declare -a PAIR_REMOTE_MISSING=()
+declare -a PAIR_REMOTE_NOPERM=()
+
+_pending_from=""
+
 # =============================================================
 # Parse arguments
 # =============================================================
@@ -78,25 +98,48 @@ for ARG in "$@"; do
         --local_dir=*)   LOCAL_DIR="${ARG#--local_dir=}" ;;
         --remote_dir=*)  REMOTE_DIR="${ARG#--remote_dir=}" ;;
         --deploy_hint=*) DEPLOY_HINT="${ARG#--deploy_hint=}" ;;
+        --from=*)        _pending_from="${ARG#--from=}" ;;
+        --to=*)
+            _remote="${ARG#--to=}"
+            if [[ -z "$_pending_from" ]]; then
+                echo ""
+                echo "  [ERROR]  --to= without preceding --from="
+                echo ""
+                exit 1
+            fi
+            PAIR_LOCALS+=("$(realpath -m "$_pending_from")")
+            PAIR_REMOTES+=("$_remote")
+            _pending_from=""
+            ;;
         --copy)          CMD="copy" ;;
         --check)         CMD="check" ;;
         --list)          CMD="list" ;;
         *)
             echo ""
             echo "  [ERROR]  Unknown argument: $ARG"
-            echo "  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_dir=  --remote_dir=  --deploy_hint=  --check  --copy  --list"
+            echo "  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_dir=  --remote_dir=  --deploy_hint=  --from=  --to=  --check  --copy  --list"
             echo ""
             exit 1 ;;
     esac
 done
 
-# Resolve LOCAL_DIR to absolute path (handles relative paths like ./nginx)
-[[ -n "$LOCAL_DIR" ]] && LOCAL_DIR="$(realpath -m "$LOCAL_DIR")"
+if [[ -n "$_pending_from" ]]; then
+    echo ""
+    echo "  [ERROR]  --from= without following --to= for path: $_pending_from"
+    echo ""
+    exit 1
+fi
+
+# Convert legacy --local_dir/--remote_dir to a pair
+if [[ -n "$LOCAL_DIR" && -n "$REMOTE_DIR" ]]; then
+    PAIR_LOCALS+=("$(realpath -m "$LOCAL_DIR")")
+    PAIR_REMOTES+=("$REMOTE_DIR")
+fi
 
 # =============================================================
 # Config file mode (skip if all inline params provided)
 # =============================================================
-if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; then
+if [[ -z "$RUSER" || -z "$SERVER" || ${#PAIR_LOCALS[@]} -eq 0 ]]; then
 
     if [[ -z "$CFG" ]]; then
         for f in *.remote.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
@@ -109,7 +152,7 @@ if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; the
         echo ""
         echo "  [ERROR]  No config file found. Use inline params or create *.remote.ini"
         echo "  Config:  --config=file.ini  or place *.remote.ini in current folder"
-        echo "  Inline:  --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path]"
+        echo "  Inline:  --user=name --server=host --from=local --to=remote [--from=local --to=remote ...]"
         echo ""
         exit 1
     fi
@@ -179,6 +222,10 @@ if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; the
 
     # Load profile section
     _in_profile=0
+    _cfg_local=""
+    _cfg_remote=""
+    declare -A _cfg_from=()
+    declare -A _cfg_to=()
     while IFS= read -r line; do
         line="${line#"${line%%[! ]*}"}"
         [[ -z "$line" || "$line" == \#* || "$line" == \;* ]] && continue
@@ -187,15 +234,17 @@ if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; the
         fi
         [[ "$line" == \[* ]] && { _in_profile=0; continue; }
         [[ $_in_profile -eq 0 ]] && continue
-        key="${line%%=*}"; val="${line#*=}"
-        case "${key,,}" in
-            user)        RUSER="$val" ;;
-            server)      SERVER="$val" ;;
-            ssh_key)     SSH_KEY="$val" ;;
-            local_dir)   LOCAL_DIR="$val" ;;
-            remote_dir)  REMOTE_DIR="$val" ;;
-            description) PROFILE_DESC="$val" ;;
-            deploy_hint) DEPLOY_HINT="$val" ;;
+        key="${line%%=*}"; val="${line#*=}"; _lkey="${key,,}"
+        case "$_lkey" in
+            user)                    RUSER="$val" ;;
+            server)                  SERVER="$val" ;;
+            ssh_key)                 SSH_KEY="$val" ;;
+            local_dir|local_path)    _cfg_local="$val" ;;
+            remote_dir|remote_path)  _cfg_remote="$val" ;;
+            description)             PROFILE_DESC="$val" ;;
+            deploy_hint)             DEPLOY_HINT="$val" ;;
+            from_[0-9]*)             _cfg_from["${_lkey#from_}"]="$val" ;;
+            to_[0-9]*)               _cfg_to["${_lkey#to_}"]="$val" ;;
         esac
     done < "$CFG"
 
@@ -207,13 +256,35 @@ if [[ -z "$RUSER" || -z "$SERVER" || -z "$LOCAL_DIR" || -z "$REMOTE_DIR" ]]; the
         exit 1
     fi
 
+    # Add legacy local_dir/remote_dir pair
+    if [[ -n "$_cfg_local" && -n "$_cfg_remote" ]]; then
+        PAIR_LOCALS+=("$(realpath -m "$_cfg_local")")
+        PAIR_REMOTES+=("$_cfg_remote")
+    fi
+
+    # Add from_N/to_N pairs from config (sorted numerically)
+    for idx in $(echo "${!_cfg_from[@]}" | tr ' ' '\n' | sort -n); do
+        if [[ -n "${_cfg_from[$idx]:-}" && -n "${_cfg_to[$idx]:-}" ]]; then
+            PAIR_LOCALS+=("$(realpath -m "${_cfg_from[$idx]}")")
+            PAIR_REMOTES+=("${_cfg_to[$idx]}")
+        fi
+    done
+
+    if [[ ${#PAIR_LOCALS[@]} -eq 0 ]]; then
+        echo ""
+        echo "  [ERROR]  No paths defined in profile: $PROFILE"
+        echo "  Add local_dir/remote_dir or from_N/to_N pairs to the profile."
+        echo ""
+        exit 1
+    fi
+
 fi  # end config mode
 
 # expand ~ in SSH_KEY
 SSH_KEY="${SSH_KEY/#\~/$HOME}"
 
 # =============================================================
-# Show config and run checks
+# Show config header
 # =============================================================
 echo ""
 echo "  ============================================"
@@ -227,22 +298,15 @@ echo "   Command : $CMD"
 echo "  ============================================"
 echo "   Server  : $RUSER@$SERVER"
 if [[ -n "$SSH_KEY" ]]; then echo "   SSH key : $SSH_KEY"; else echo "   SSH key : (default)"; fi
-echo "   Local   : $LOCAL_DIR"
-echo "   Remote  : $REMOTE_DIR"
 echo "  ============================================"
 echo ""
 
+SSH_KEY_ARG=()
+[[ -n "$SSH_KEY" ]] && SSH_KEY_ARG=(-i "$SSH_KEY")
+
 ALL_OK=1
-REMOTE_MISSING=0
-REMOTE_NOPERM=0
 
-if [[ -d "$LOCAL_DIR" ]]; then
-    echo "  [OK]     Local folder found"
-else
-    echo "  [ERROR]  Local folder NOT FOUND: $LOCAL_DIR"
-    ALL_OK=0
-fi
-
+# SSH key check (once)
 if [[ -n "$SSH_KEY" ]]; then
     if [[ -f "$SSH_KEY" ]]; then
         echo "  [OK]     SSH key found"
@@ -252,31 +316,69 @@ if [[ -n "$SSH_KEY" ]]; then
     fi
 fi
 
-SSH_KEY_ARG=()
-[[ -n "$SSH_KEY" ]] && SSH_KEY_ARG=(-i "$SSH_KEY")
+# =============================================================
+# Check each pair
+# =============================================================
+for i in "${!PAIR_LOCALS[@]}"; do
+    _local="${PAIR_LOCALS[$i]}"
+    _remote="${PAIR_REMOTES[$i]}"
+    PAIR_IS_DIR[$i]=0
+    PAIR_REMOTE_MISSING[$i]=0
+    PAIR_REMOTE_NOPERM[$i]=0
 
-echo "  Checking SSH to $RUSER@$SERVER..."
-SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
-    "$RUSER@$SERVER" "if [ -d '$REMOTE_DIR' ]; then if [ -w '$REMOTE_DIR' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" 2>/dev/null || true)
+    echo ""
+    echo "  --- Pair $i: $_local  ->  $_remote"
 
-if [[ -z "$SSH_RESULT" ]]; then
-    echo "  [FAILED] SSH connection failed: $RUSER@$SERVER"
-    ALL_OK=0
-elif [[ "$SSH_RESULT" == "FOUND" ]]; then
-    echo "  [OK]     SSH OK - remote folder found"
-elif [[ "$SSH_RESULT" == "MISSING" ]]; then
-    echo "  [WARN]   SSH OK - remote folder will be created: $REMOTE_DIR"
-    REMOTE_MISSING=1
-elif [[ "$SSH_RESULT" == "NOPERM" ]]; then
-    echo "  [WARN]   SSH OK - remote folder exists but needs sudo chown: $REMOTE_DIR"
-    REMOTE_NOPERM=1
-else
-    echo "  [FAILED] SSH error: $SSH_RESULT"
-    ALL_OK=0
-fi
+    if [[ -d "$_local" ]]; then
+        echo "  [OK]     Local folder found"
+        PAIR_IS_DIR[$i]=1
+        if ! command -v rsync &>/dev/null; then
+            echo "  [ERROR]  rsync not found - required for folder copy (excludes .env and .gitignore files)"
+            echo "  Install: sudo apt install rsync"
+            ALL_OK=0
+        fi
+    elif [[ -f "$_local" ]]; then
+        echo "  [OK]     Local file found"
+    else
+        echo "  [ERROR]  Local path NOT FOUND: $_local"
+        ALL_OK=0
+    fi
+
+    echo "  Checking SSH to $RUSER@$SERVER..."
+    if [[ "${PAIR_IS_DIR[$i]}" -eq 1 ]]; then
+        SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
+            "$RUSER@$SERVER" \
+            "if [ -d '$_remote' ]; then if [ -w '$_remote' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" \
+            2>/dev/null || true)
+    else
+        SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
+            "$RUSER@$SERVER" \
+            "RPAR=\$(dirname '$_remote'); if [ -d '$_remote' ] && [ -w '$_remote' ]; then echo FOUND; elif [ -d \$RPAR ] && [ -w \$RPAR ]; then echo FOUND; elif [ -d \$RPAR ]; then echo NOPERM; else echo MISSING; fi" \
+            2>/dev/null || true)
+    fi
+
+    if [[ -z "$SSH_RESULT" ]]; then
+        echo "  [FAILED] SSH connection failed: $RUSER@$SERVER"
+        ALL_OK=0
+    elif [[ "$SSH_RESULT" == "FOUND" ]]; then
+        echo "  [OK]     SSH OK - remote path found"
+    elif [[ "$SSH_RESULT" == "MISSING" ]]; then
+        if [[ "${PAIR_IS_DIR[$i]}" -eq 1 ]]; then
+            echo "  [WARN]   SSH OK - remote folder will be created: $_remote"
+        else
+            echo "  [WARN]   SSH OK - remote parent folder will be created for: $_remote"
+        fi
+        PAIR_REMOTE_MISSING[$i]=1
+    elif [[ "$SSH_RESULT" == "NOPERM" ]]; then
+        echo "  [WARN]   SSH OK - remote path exists but needs sudo chown: $_remote"
+        PAIR_REMOTE_NOPERM[$i]=1
+    else
+        echo "  [FAILED] SSH error: $SSH_RESULT"
+        ALL_OK=0
+    fi
+done
 
 echo ""
-
 if [[ "$ALL_OK" -eq 0 ]]; then
     echo "  Fix errors above before copying."
     echo ""
@@ -290,44 +392,74 @@ if [[ "$CMD" == "check" ]]; then
 fi
 
 # =============================================================
-# Copy
+# Copy each pair
 # =============================================================
 echo "  Starting copy..."
 echo ""
 
-if [[ "$REMOTE_MISSING" -eq 1 ]]; then
-    echo "  Creating remote folder: $REMOTE_DIR"
-    ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo mkdir -p '$REMOTE_DIR' && sudo chown $RUSER:$RUSER '$REMOTE_DIR'"
-    if [[ $? -ne 0 ]]; then
-        echo "  [FAILED] Could not create remote folder."
-        exit 1
-    fi
-    echo "  [OK]     Remote folder created."
-    echo ""
-fi
-if [[ "$REMOTE_NOPERM" -eq 1 ]]; then
-    echo "  Fixing permissions: $REMOTE_DIR"
-    ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo chown $RUSER:$RUSER '$REMOTE_DIR'"
-    if [[ $? -ne 0 ]]; then
-        echo "  [FAILED] Could not fix permissions."
-        exit 1
-    fi
-    echo "  [OK]     Permissions fixed."
-    echo ""
-fi
+for i in "${!PAIR_LOCALS[@]}"; do
+    _local="${PAIR_LOCALS[$i]}"
+    _remote="${PAIR_REMOTES[$i]}"
+    _is_dir="${PAIR_IS_DIR[$i]}"
+    _remote_missing="${PAIR_REMOTE_MISSING[$i]}"
+    _remote_noperm="${PAIR_REMOTE_NOPERM[$i]}"
 
-scp "${SSH_KEY_ARG[@]}" -r "$LOCAL_DIR/." "$RUSER@$SERVER:$REMOTE_DIR/"
-
-if [[ $? -eq 0 ]]; then
+    echo "  --- Pair $i: $_local  ->  $_remote"
     echo ""
-    echo "  [OK]  Copy completed."
-    if [[ -n "$DEPLOY_HINT" ]]; then
+
+    if [[ "$_is_dir" -eq 1 ]]; then
+        if [[ "$_remote_missing" -eq 1 ]]; then
+            echo "  Creating remote folder: $_remote"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo mkdir -p '$_remote' && sudo chown $RUSER:$RUSER '$_remote'"
+            if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not create remote folder."; exit 1; fi
+            echo "  [OK]     Remote folder created."
+            echo ""
+        fi
+        if [[ "$_remote_noperm" -eq 1 ]]; then
+            echo "  Fixing permissions: $_remote"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo chown $RUSER:$RUSER '$_remote'"
+            if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not fix permissions."; exit 1; fi
+            echo "  [OK]     Permissions fixed."
+            echo ""
+        fi
+        _rsync_e="ssh"
+        [[ -n "$SSH_KEY" ]] && _rsync_e="ssh -i $SSH_KEY"
+        echo "  Command: rsync -avz --exclude='.env' --filter=':- .gitignore' -e \"$_rsync_e\" \"$_local/\" $RUSER@$SERVER:$_remote/"
         echo ""
-        echo "  On server:"
-        echo "    $DEPLOY_HINT"
+        rsync -avz --exclude='.env' --filter=':- .gitignore' -e "$_rsync_e" "$_local/" "$RUSER@$SERVER:$_remote/"
+    else
+        if [[ "$_remote_missing" -eq 1 ]]; then
+            echo "  Creating remote parent folder for: $_remote"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "RPAR=\$(dirname '$_remote'); sudo mkdir -p \$RPAR && sudo chown $RUSER:$RUSER \$RPAR"
+            if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not create remote parent folder."; exit 1; fi
+            echo "  [OK]     Remote parent folder created."
+            echo ""
+        fi
+        if [[ "$_remote_noperm" -eq 1 ]]; then
+            echo "  Fixing permissions for parent of: $_remote"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "RPAR=\$(dirname '$_remote'); sudo chown $RUSER:$RUSER \$RPAR"
+            if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not fix permissions."; exit 1; fi
+            echo "  [OK]     Permissions fixed."
+            echo ""
+        fi
+        echo "  Command: scp ${SSH_KEY_ARG[*]} \"$_local\" $RUSER@$SERVER:$_remote"
+        echo ""
+        scp "${SSH_KEY_ARG[@]}" "$_local" "$RUSER@$SERVER:$_remote"
     fi
-else
-    echo "  [FAILED] scp failed"
-    exit 1
+
+    if [[ $? -eq 0 ]]; then
+        echo "  [OK]  Copied: pair $i"
+    else
+        echo "  [FAILED] scp failed for pair $i"
+        exit 1
+    fi
+    echo ""
+done
+
+echo "  All pairs copied successfully."
+if [[ -n "$DEPLOY_HINT" ]]; then
+    echo ""
+    echo "  On server:"
+    echo "    $DEPLOY_HINT"
 fi
 echo ""
