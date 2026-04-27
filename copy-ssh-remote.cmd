@@ -13,11 +13,32 @@ setlocal enabledelayedexpansion
 ::                Docs: https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
 ::
 ::    rsync     - required only for folder copy (excludes .env and .gitignore files)
-::                winget : winget install itefix.cwrsync
 ::                scoop  : scoop install rsync        (https://scoop.sh)
 ::                choco  : choco install rsync         (https://chocolatey.org)
+::                direct : download cwRsync from https://itefix.net/cwrsync (free version)
+::                         extract and add to PATH, or place rsync.exe next to this script
 ::
-::  Two modes:
+::  Transfer options (change defaults in the "set" lines below the argument block):
+::
+::    SCP_OPTS    scp flags for file copy      (default: empty)
+::                  -C        compress during transfer
+::                  -p        preserve timestamps and permissions
+::                  -l 1000   limit bandwidth in kbit/s
+::
+::    RSYNC_FLAGS rsync flags for folder copy  (default: -avz)
+::                  -a        archive: recursive + preserve permissions, timestamps, symlinks
+::                  -v        verbose output (show each transferred file)
+::                  -z        compress during transfer
+::                  -n        dry run: show what would be copied without copying
+::                  --delete  remove remote files that are absent in source
+::
+::    RSYNC_EXCL  rsync exclude pattern        (default: --exclude=.env)
+::                  .gitignore rules are always applied via --filter=:- .gitignore
+::  
+::  See full options description, usage and examples in the end of this script.
+::  
+::  
+:: copy-ssh-remote.cmd Two modes:
 ::
 ::  1. Config file:
 ::       /config:file.ini    config file  (default: first *.remote.ini)
@@ -73,6 +94,11 @@ setlocal enabledelayedexpansion
 ::    deploy_hint=cd /home/myuser/another-project && npm start
 :: =============================================================
 
+:: --- Transfer options (edit here to customize) ---
+set "SCP_OPTS="
+set "RSYNC_FLAGS=-avz"
+set "RSYNC_EXCL=--exclude=.env"
+
 set "CMD=check"
 set "PROFILE="
 set "CFG="
@@ -85,6 +111,8 @@ set "DEPLOY_HINT="
 set "PROFILE_DESC="
 set "PAIR_COUNT=0"
 set "_PENDING_FROM="
+
+
 
 :: =============================================================
 :: Parse arguments
@@ -311,7 +339,7 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         where rsync >nul 2>&1
         if !ERRORLEVEL! neq 0 (
             echo  [ERROR]  rsync not found - required for folder copy ^(excludes .env and .gitignore files^)
-            echo  Install: winget install cwrsync  or  scoop install rsync
+            echo  Install: scoop install rsync  or  choco install rsync  ^(see script header^)
             set "ALL_OK=0"
         )
     ) else if exist "!_LOCAL!" (
@@ -392,9 +420,9 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         )
         set "RSYNC_E=ssh"
         if defined SSH_KEY set "RSYNC_E=ssh -i !SSH_KEY!"
-        echo  Command: rsync -avz --exclude=.env "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+        echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
         echo.
-        rsync -avz --exclude=.env "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+        rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
     ) else (
         rem --- File mode ---
         if "!PAIR_%%i_REMOTE_MISSING!"=="1" (
@@ -411,9 +439,9 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
             echo  [OK]     Permissions fixed.
             echo.
         )
-        echo  Command: scp !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
+        echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
         echo.
-        scp !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
+        scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
     )
 
     if !ERRORLEVEL! equ 0 (
@@ -470,3 +498,61 @@ if defined _CUR_NAME (
 )
 echo.
 goto :eof
+
+
+::  rsync reference (https://linux.die.net/man/1/rsync):
+::
+::  Mode flags:
+::    -a, --archive         archive mode = -rlptgoD (recursive, preserve all attributes)
+::    -r, --recursive       recurse into directories
+::    -v, --verbose         show each transferred file name
+::    -z, --compress        compress data during transfer (useful on slow links)
+::    -n, --dry-run         show what would be transferred without doing it
+::    -P                    shorthand for --partial --progress (resume + show progress)
+::    -h, --human-readable  output file sizes in human-readable format (KB, MB)
+::        --stats           print transfer statistics at the end
+::
+::  File selection:
+::        --delete          delete remote files not present in source (mirror mode)
+::        --exclude=PAT     exclude files matching pattern  e.g. --exclude='*.log'
+::        --include=PAT     force-include files (overrides --exclude)
+::        --filter=RULE     general filter rule  e.g. --filter=':- .gitignore'
+::        --ignore-existing skip files that already exist on the remote
+::        --update          skip files that are newer on the remote
+::        --checksum        compare by checksum instead of size+timestamp
+::
+::  Transfer:
+::    -e CMD                remote shell  e.g. -e "ssh -i ~/.ssh/key"
+::        --bwlimit=KBPS    limit bandwidth  e.g. --bwlimit=5000 for ~5 Mbit/s
+::        --partial         keep partially transferred files (allows resume)
+::        --progress        show per-file transfer progress
+::
+::  Backup:
+::        --backup          make backups of changed/deleted files
+::        --backup-dir=DIR  store backups in DIR on remote
+::        --suffix=.bak     suffix for backup files (default: ~)
+::
+::  rsync examples (set RSYNC_FLAGS / RSYNC_EXCL variables above to apply):
+::    RSYNC_FLAGS=-avzn                                 dry run (show without copying)
+::    RSYNC_FLAGS=-avz --delete                         mirror (remove extra remote files)
+::    RSYNC_FLAGS=-avzP                                 show progress + allow resume
+::    RSYNC_FLAGS=-avz --bwlimit=5000                   limit to ~5 Mbit/s
+::    RSYNC_EXCL=--exclude='*.log'                      exclude log files
+::    RSYNC_EXCL=--exclude=.env --exclude='*.log'       exclude multiple patterns
+::
+:: =============================================================
+::  scp reference:
+::
+::    -C          compress during transfer
+::    -p          preserve timestamps and permissions
+::    -l KBPS     limit bandwidth in Kbit/s  e.g. -l 5000
+::    -P PORT     remote port (default: 22)
+::    -q          quiet mode (suppress progress)
+::    -o OPT      pass SSH option  e.g. -o ConnectTimeout=10
+::
+::  scp examples (set SCP_OPTS variable above to apply):
+::    SCP_OPTS=-C             compress during transfer
+::    SCP_OPTS=-p             preserve timestamps and permissions
+::    SCP_OPTS=-C -p          compress and preserve timestamps
+::    SCP_OPTS=-l 5000        limit bandwidth to ~5 Mbit/s
+::    SCP_OPTS=-P 2222        use non-default SSH port
