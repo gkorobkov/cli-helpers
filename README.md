@@ -87,15 +87,15 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-file-access.cmd <file> [/fix-ssh-access | /grant <perms> | /remove <user>]
+file-access.cmd <file> [--fix-ssh-access | --grant <perms> | --remove <user>]
 ```
 
 Parameters:
 - `<file>`: Required. Path to the target file.
 - No second argument: Print the current permissions with `icacls`.
-- `/fix-ssh-access`: Remove inheritance, strip `BUILTIN\Users` and `Everyone`, and grant Full access to the current user, `SYSTEM`, and `Administrators`. Use this when SSH reports *"Bad permissions … BUILTIN\Users"*.
-- `/grant <perms>`: Remove inheritance and grant the specified mask to the current user, `SYSTEM`, and `Administrators`. Masks: `F` (Full), `M` (Modify), `RX` (Read+Execute), `R` (Read).
-- `/remove <user>`: Remove all ACL entries for the named account (e.g. `"BUILTIN\Users"`, `"Everyone"`).
+- `--fix-ssh-access`: Remove inheritance, strip `BUILTIN\Users` and `Everyone`, and grant Full access to the current user, `SYSTEM`, and `Administrators`. Use this when SSH reports *"Bad permissions … BUILTIN\Users"*.
+- `--grant <perms>`: Remove inheritance and grant the specified mask to the current user, `SYSTEM`, and `Administrators`. Masks: `F` (Full), `M` (Modify), `RX` (Read+Execute), `R` (Read).
+- `--remove <user>`: Remove all ACL entries for the named account (e.g. `"BUILTIN\Users"`, `"Everyone"`).
 
 Examples:
 
@@ -106,17 +106,17 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa
 
 ```bat
 :: Windows CMD / BAT
-file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 /fix-ssh-access
+file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --fix-ssh-access
 ```
 
 ```bat
 :: Windows CMD / BAT
-file-access.cmd %USERPROFILE%\.ssh\id_rsa /grant F
+file-access.cmd %USERPROFILE%\.ssh\id_rsa --grant F
 ```
 
 ```bat
 :: Windows CMD / BAT
-file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
+file-access.cmd %USERPROFILE%\.ssh\id_rsa --remove "BUILTIN\Users"
 ```
 
 
@@ -127,19 +127,19 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
 Files: `ssh-copy-remote.cmd`, `ssh-copy-remote.sh`
 
 Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
-Without `/copy` (or `--copy`) the script performs a connectivity check only.
+Without `--copy` the script performs a connectivity check only.
 Supports two modes: **config file** (named profiles in a `*.remote.ini` file) or **inline** (all connection details passed directly as parameters, no config file needed).
 
 General form:
 
 ```bat
 :: Windows CMD / BAT — config file mode
-ssh-copy-remote.cmd [/config:file.ini] [/profile:name] [/check|/copy|/list]
+ssh-copy-remote.cmd [--config=file.ini] [--profile=name] [--check|--copy|--list]
 ```
 
 ```bat
 :: Windows CMD / BAT — inline mode (no config file)
-ssh-copy-remote.cmd /user:name /server:host /local_dir:path /remote_dir:path [/ssh_key:path] [/copy]
+ssh-copy-remote.cmd --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path] [--copy]
 ```
 
 ```bash
@@ -154,17 +154,17 @@ ssh-copy-remote.cmd /user:name /server:host /local_dir:path /remote_dir:path [/s
 
 Parameters:
 - No arguments: check mode using the first `*.remote.ini` in the current folder and the default profile.
-- `/config:file.ini` / `--config=file.ini`: Optional. Path to the config file.
-- `/profile:name` / `--profile=name`: Optional. Profile to use. Defaults to `default_profile` in config.
-- `/user:name` / `--user=name`: Inline mode. SSH user name.
-- `/server:host` / `--server=host`: Inline mode. SSH server host.
-- `/ssh_key:path` / `--ssh_key=path`: Optional. Path to SSH private key.
-- `/local_dir:path` / `--local_dir=path`: Inline mode. Local folder to copy.
-- `/remote_dir:path` / `--remote_dir=path`: Inline mode. Remote destination path.
-- `/deploy_hint:cmd` / `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
-- `/check` / `--check`: Optional. Verify connectivity without copying (default mode).
-- `/copy` / `--copy`: Optional. Run the actual `scp` copy after checks pass.
-- `/list` / `--list`: Optional. Print all available profiles and exit.
+- `--config=file.ini`: Optional. Path to the config file.
+- `--profile=name`: Optional. Profile to use. Defaults to `default_profile` in config.
+- `--user=name`: Inline mode. SSH user name.
+- `--server=host`: Inline mode. SSH server host.
+- `--ssh_key=path`: Optional. Path to SSH private key.
+- `--local_dir=path`: Inline mode. Local folder to copy.
+- `--remote_dir=path`: Inline mode. Remote destination path.
+- `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
+- `--check`: Optional. Verify connectivity without copying (default mode).
+- `--copy`: Optional. Run the actual `scp` copy after checks pass.
+- `--list`: Optional. Print all available profiles and exit.
 
 Config file format (save as `*.remote.ini`, e.g. `copy-remote.remote.ini`; excluded from git):
 
@@ -198,17 +198,17 @@ ssh-copy-remote.cmd
 
 ```bat
 :: Windows CMD / BAT — copy using the default profile
-ssh-copy-remote.cmd /copy
+ssh-copy-remote.cmd --copy
 ```
 
 ```bat
 :: Windows CMD / BAT — copy using a named profile
-ssh-copy-remote.cmd /profile:ai-agent /copy
+ssh-copy-remote.cmd --profile=ai-agent --copy
 ```
 
 ```bat
 :: Windows CMD / BAT — inline mode, no config file
-ssh-copy-remote.cmd /user:me /server:myhost /local_dir:C:\proj /remote_dir:/home/me/proj /copy
+ssh-copy-remote.cmd --user=me --server=myhost --local_dir=C:\proj --remote_dir=/home/me/proj --copy
 ```
 
 ```bash
