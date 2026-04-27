@@ -22,8 +22,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
 - [Markdown Utilities](#markdown-utilities)
   - [Creates or updates TOC in MD (Markdown) files from the command prompt.](#creates-or-updates-toc-in-md-markdown-files-from-the-command-prompt)
   - [Creates or updates TOC in MD (Markdown) files with PowerShell.](#creates-or-updates-toc-in-md-markdown-files-with-powershell)
-  - [Creates or updates TOC in MD (Markdown) files with Python.](#creates-or-updates-toc-in-md-markdown-files-with-python)
-  - [Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).](#creates-or-updates-toc-in-md-markdown-files-with-bash-android--linux)
+  - [Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).](#creates-or-updates-toc-in-md-markdown-files-with-bash-android-linux)
 - [Python Utilities](#python-utilities)
   - [Activates the local Python virtual environment.](#activates-the-local-python-virtual-environment)
   - [Creates a local Python virtual environment in `.venv`.](#creates-a-local-python-virtual-environment-in-venv)
@@ -32,7 +31,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
   - [Starts Jupyter Notebook in the current directory.](#starts-jupyter-notebook-in-the-current-directory)
   - [Starts Qodo in UI mode.](#starts-qodo-in-ui-mode)
 - [Other Utilities](#other-utilities)
-  
+
 # Command Line Utilities
 
 ## Checks, lists, adds, or removes the current directory in `PATH`.
@@ -420,41 +419,45 @@ git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
 
 ## Creates or updates TOC in MD (Markdown) files from the command prompt.
 
-File: `update-md-toc.cmd`
+Files: `update-md-toc.cmd`, `update-md-toc.ps1`
 
 Windows CMD wrapper around `update-md-toc.ps1`.
 Parses CMD-style arguments, passes them through environment variables, and starts the PowerShell implementation.
 Positional file arguments are supported in addition to `--files`.
 
+Without file arguments, lists all `*.md` files in the current directory with their TOC status and prints ready-to-run example commands — nothing is written.
+If a file has no TOC marker heading, `# Table of contents` is inserted at the top automatically.
+
 General form:
 
 ```bat
 :: Windows CMD / BAT
-update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN] [--help]
+update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
 ```
 
 Parameters:
+- No arguments: Scan `*.md` files, show status and example commands (no changes written).
 - `FILE`: Optional. One or more Markdown files to process (positional).
 - `--files FILE ...`: Optional. Alternative explicit file list.
 - `--dry-run`: Optional. Print the generated TOC without writing changes.
-- `--toc-depth hN`: Optional. Limit generated entries to `H1-HN`.
-- `--help`: Optional. Show usage through the PowerShell script.
+- `--hN`: Optional. Limit generated entries to `H1-HN` (e.g. `--h2`, `--h3`).
+- `--help`: Optional. Show usage.
 
 Examples:
 
 ```bat
-:: Windows CMD / BAT
+:: Windows CMD / BAT — list files and show example commands (no changes)
 update-md-toc.cmd
 ```
 
 ```bat
-:: Windows CMD / BAT
+:: Windows CMD / BAT — update TOC in a single file
 update-md-toc.cmd setup.md
 ```
 
 ```bat
-:: Windows CMD / BAT
-update-md-toc.cmd README.md docs.md --dry-run --toc-depth h3
+:: Windows CMD / BAT — preview changes for multiple files, H1-H3 only
+update-md-toc.cmd README.md docs.md --dry-run --h3
 ```
 
 
@@ -462,80 +465,44 @@ update-md-toc.cmd README.md docs.md --dry-run --toc-depth h3
 
 File: `update-md-toc.ps1`
 
-PowerShell implementation of the Markdown TOC updater.
+PowerShell implementation of the Markdown TOC updater. Called by `update-md-toc.cmd`; can also be run directly.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
+If no TOC marker is found, inserts `# Table of contents` at the top automatically.
 Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
 
 General form:
 
 ```powershell
 # Windows PowerShell
-.\update-md-toc.ps1 [-Files <string[]>] [-DryRun] [-TocDepth hN] [-Help]
+.\update-md-toc.ps1 [-Files <string[]>] [-DryRun] [-HN hN] [-Help]
 ```
 
 Parameters:
+- No `-Files`: Scan `*.md` files, show status and example commands (no changes written).
 - `-Files <string[]>`: Optional. Process only the listed Markdown files.
 - `-DryRun`: Optional. Print changes without writing files.
-- `-TocDepth hN`: Optional. Limit generated entries to `H1-HN`.
+- `-HN hN`: Optional. Limit generated entries to `H1-HN` (e.g. `h2`, `h3`).
 - `-Help`: Optional. Print usage.
 - `-FromCmdWrapper`: Internal flag used by `update-md-toc.cmd`.
 
 In-code settings:
 - `TOC_START_HEADING_TEXTS`: Accepted TOC marker headings.
+- `AUTO_INSERT_HEADING`: Heading inserted when no marker is found.
 - `TARGET_FILE_GLOBS`: File patterns used when `-Files` is omitted.
-- `TOC_MIN_LEVEL` / `TOC_MAX_LEVEL`: Default heading depth range.
 - `TOC_BULLET` / `TOC_INDENT`: Formatting for generated list items.
 
 Examples:
 
 ```powershell
-# Windows PowerShell
+# Windows PowerShell — list files and show example commands
 .\update-md-toc.ps1
 ```
 
 ```powershell
-# Windows PowerShell
-.\update-md-toc.ps1 -Files README.md -DryRun -TocDepth h3
+# Windows PowerShell — preview changes, H1-H3 only
+.\update-md-toc.ps1 -Files README.md -DryRun -HN h3
 ```
 
-
-## Creates or updates TOC in MD (Markdown) files with Python.
-
-File: `update-md-toc.py`
-
-Python implementation of the Markdown TOC updater.
-Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
-Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
-
-General form:
-
-```bash
-# Linux / bash
-python update-md-toc.py [--files <file1> [file2 ...]] [--dry-run] [--toc-depth hN]
-```
-
-Parameters:
-- `--files <file1> [file2 ...]`: Optional. Process only the listed Markdown files.
-- `--dry-run`: Optional. Print changes without writing files.
-- `--toc-depth hN`: Optional. Limit generated entries to `H1-HN`.
-
-In-code settings:
-- `TOC_START_HEADING_TEXTS`: Accepted TOC marker headings.
-- `TARGET_FILE_GLOBS`: File patterns used when `--files` is omitted.
-- `TOC_MIN_LEVEL` / `TOC_MAX_LEVEL`: Default heading depth range.
-- `TOC_BULLET` / `TOC_INDENT`: Formatting for generated list items.
-
-Examples:
-
-```bash
-# Linux / bash
-python update-md-toc.py
-```
-
-```bash
-# Linux / bash
-python update-md-toc.py --files README.md --dry-run --toc-depth h3
-```
 
 ## Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).
 
@@ -544,7 +511,10 @@ File: `update-md-toc.sh`
 Pure bash implementation of the Markdown TOC updater — no Python or PowerShell required.
 Works on Android (Termux), Linux, and macOS out of the box.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
+If no TOC marker is found, inserts `# Table of contents` at the top automatically.
 Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
+
+Without file arguments, lists all `*.md` files in the current directory with their TOC status and prints ready-to-run example commands — nothing is written.
 
 > **Note (Termux / Android):** For correct Unicode slugs from Russian headings, set `LANG=C.UTF-8`:
 > ```bash
@@ -559,30 +529,31 @@ General form:
 
 ```bash
 # bash (Android / Termux / Linux)
-./update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--toc-depth hN]
+./update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]
 ```
 
 Parameters:
+- No arguments: Scan `*.md` files, show status and example commands (no changes written).
 - `FILE`: Optional. One or more Markdown files (positional).
 - `--files FILE ...`: Optional. Alternative explicit file list.
 - `--dry-run`: Optional. Print changes without writing files.
-- `--toc-depth hN`: Optional. Limit generated entries to `H1-HN`.
+- `--hN`: Optional. Limit generated entries to `H1-HN` (e.g. `--h2`, `--h3`).
 
 Examples:
 
 ```bash
-# bash (Android / Termux / Linux)
+# bash (Android / Termux / Linux) — list files and show example commands
 ./update-md-toc.sh
 ```
 
 ```bash
-# bash (Android / Termux / Linux)
+# bash (Android / Termux / Linux) — update TOC in a single file
 ./update-md-toc.sh README.md
 ```
 
 ```bash
-# bash (Android / Termux / Linux)
-./update-md-toc.sh README.md --dry-run --toc-depth h3
+# bash (Android / Termux / Linux) — preview changes, H1-H3 only
+./update-md-toc.sh README.md --dry-run --h3
 ```
 
 
