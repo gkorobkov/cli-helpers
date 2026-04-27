@@ -1,3 +1,3 @@
 __pycache__/
 *.zen*
-run-copy-ssh-remote.cmd
+run-ssh-copy-remote.cmd

@@ -1,5 +1,5 @@
 @echo off
-:: run-jupyter.cmd — Starts Jupyter Notebook in the current directory.
+:: py-jupyter-run.cmd — Starts Jupyter Notebook in the current directory.
 ::
 :: Runs: start jupyter notebook --notebook-dir %cd%
 :: Opens in a separate window and returns to the prompt immediately.
@@ -10,8 +10,8 @@
 ::              or: conda install notebook
 ::
 :: Usage:
-::   run-jupyter.cmd
+::   py-jupyter-run.cmd
 ::
 :: Examples:
-::   run-jupyter.cmd
+::   py-jupyter-run.cmd
 start jupyter notebook --notebook-dir %cd%

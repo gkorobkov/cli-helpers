@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# copy-ssh-remote.sh - copy project to remote server via SSH/scp
+# ssh-copy-remote.sh - copy project to remote server via SSH/scp
 #
 #  Config: *.remote.ini or *.local.ini in current folder (not in git)
 #
@@ -47,13 +47,13 @@
 #       --check              check only
 #
 #  Examples:
-#    ./copy-ssh-remote.sh
-#    ./copy-ssh-remote.sh --copy
-#    ./copy-ssh-remote.sh --profile=ai-agent --copy
-#    ./copy-ssh-remote.sh --config=/other/cfg.ini --profile=ai-agent --copy
-#    ./copy-ssh-remote.sh --user=me --server=host --ssh_key=~/.ssh/id_rsa --from=/home/me/proj --to=/remote/proj --copy
-#    ./copy-ssh-remote.sh --user=me --server=host --from=/home/me/a.txt --to=/remote/a.txt --from=/home/me/dir --to=/remote/dir --copy
-#    ./copy-ssh-remote.sh --user=me --server=host --local_dir=/home/me/proj --remote_dir=/remote/proj --copy
+#    ./ssh-copy-remote.sh
+#    ./ssh-copy-remote.sh --copy
+#    ./ssh-copy-remote.sh --profile=ai-agent --copy
+#    ./ssh-copy-remote.sh --config=/other/cfg.ini --profile=ai-agent --copy
+#    ./ssh-copy-remote.sh --user=me --server=host --ssh_key=~/.ssh/id_rsa --from=/home/me/proj --to=/remote/proj --copy
+#    ./ssh-copy-remote.sh --user=me --server=host --from=/home/me/a.txt --to=/remote/a.txt --from=/home/me/dir --to=/remote/dir --copy
+#    ./ssh-copy-remote.sh --user=me --server=host --local_dir=/home/me/proj --remote_dir=/remote/proj --copy
 # =============================================================
 #  Config file format (save as *.remote.ini):
 #

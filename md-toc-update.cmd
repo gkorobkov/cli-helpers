@@ -1,5 +1,5 @@
 @echo off
-:: update-md-toc.cmd — Creates or updates Table of Contents in Markdown files.
+:: md-toc-update.cmd — Creates or updates Table of Contents in Markdown files.
 ::
 :: Finds a heading named "Оглавление", "TOC", "Table of contents", or "Contents"
 :: and replaces the block below it (until the next heading) with generated TOC links.
@@ -10,21 +10,21 @@
 ::
 :: Dependencies:
 ::   PowerShell        - built-in on Windows 10/11 (no install needed)
-::   update-md-toc.ps1 - sibling script in the same folder
+::   md-toc-update.ps1 - sibling script in the same folder
 ::
 :: Usage:
-::   update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
+::   md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
 ::
 :: Examples:
-::   update-md-toc.cmd                              List MD files and show example commands
-::   update-md-toc.cmd setup.md                    Update TOC in a single file
-::   update-md-toc.cmd a.md b.md                   Update multiple files
-::   update-md-toc.cmd setup.md --dry-run           Preview changes without writing
-::   update-md-toc.cmd setup.md --h3                Include H1-H3 headings only
-::   update-md-toc.cmd --files a.md b.md --dry-run  Explicit --files form also works
+::   md-toc-update.cmd                              List MD files and show example commands
+::   md-toc-update.cmd setup.md                    Update TOC in a single file
+::   md-toc-update.cmd a.md b.md                   Update multiple files
+::   md-toc-update.cmd setup.md --dry-run           Preview changes without writing
+::   md-toc-update.cmd setup.md --h3                Include H1-H3 headings only
+::   md-toc-update.cmd --files a.md b.md --dry-run  Explicit --files form also works
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "SCRIPT_PS1=%~dpn0.ps1"
+set "SCRIPT_PS1=%~dp0md-toc-update.ps1"
 set "UPDATE_MD_TOC_DRY_RUN="
 set "UPDATE_MD_TOC_HN="
 set "UPDATE_MD_TOC_FILES="

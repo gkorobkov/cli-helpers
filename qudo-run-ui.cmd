@@ -1,5 +1,5 @@
 @echo off
-:: run-qodo-ui.cmd — Starts Qodo in UI mode.
+:: qudo-run-ui.cmd — Starts Qodo in UI mode.
 ::
 :: Runs: start qodo --ui
 ::
@@ -11,8 +11,8 @@
 ::             Docs: https://docs.qodo.ai/qodo-documentation/qodo-command/getting-started/setup-and-quickstart
 ::
 :: Usage:
-::   run-qodo-ui.cmd
+::   qudo-run-ui.cmd
 ::
 :: Examples:
-::   run-qodo-ui.cmd
+::   qudo-run-ui.cmd
 start qodo --ui

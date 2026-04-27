@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 :: =============================================================
-:: copy-ssh-remote.cmd - copy project to remote server via SSH/scp
+:: ssh-copy-remote.cmd - copy project to remote server via SSH/scp
 ::
 ::  Config: *.remote.ini or *.local.ini in current folder (not in git)
 ::  Requires: ssh, scp, rsync
@@ -38,7 +38,7 @@ setlocal enabledelayedexpansion
 ::  See full options description, usage and examples in the end of this script.
 ::  
 ::  
-:: copy-ssh-remote.cmd Two modes:
+:: ssh-copy-remote.cmd Two modes:
 ::
 ::  1. Config file:
 ::       /config:file.ini    config file  (default: first *.remote.ini)
@@ -58,13 +58,13 @@ setlocal enabledelayedexpansion
 ::       /check              check only
 ::
 ::  Examples:
-::    copy-ssh-remote.cmd
-::    copy-ssh-remote.cmd /copy
-::    copy-ssh-remote.cmd /profile:ai-agent /copy
-::    copy-ssh-remote.cmd /config:C:\other\cfg.ini /profile:ai-agent /copy
-::    copy-ssh-remote.cmd /user:me /server:host /ssh_key:C:\key /from:C:\proj /to:/home/me/proj /copy
-::    copy-ssh-remote.cmd /user:me /server:host /from:C:\a.txt /to:/home/me/a.txt /from:C:\dir /to:/home/me/dir /copy
-::    copy-ssh-remote.cmd /user:me /server:host /local_path:C:\proj /remote_path:/home/me/proj /copy
+::    ssh-copy-remote.cmd
+::    ssh-copy-remote.cmd /copy
+::    ssh-copy-remote.cmd /profile:ai-agent /copy
+::    ssh-copy-remote.cmd /config:C:\other\cfg.ini /profile:ai-agent /copy
+::    ssh-copy-remote.cmd /user:me /server:host /ssh_key:C:\key /from:C:\proj /to:/home/me/proj /copy
+::    ssh-copy-remote.cmd /user:me /server:host /from:C:\a.txt /to:/home/me/a.txt /from:C:\dir /to:/home/me/dir /copy
+::    ssh-copy-remote.cmd /user:me /server:host /local_path:C:\proj /remote_path:/home/me/proj /copy
 :: =============================================================
 ::  Config file format (save as *.remote.ini):
 ::
