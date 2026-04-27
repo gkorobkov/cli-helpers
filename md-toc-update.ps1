@@ -1,5 +1,5 @@
 # =============================================================
-# update-md-toc.ps1 — Creates or updates TOC in Markdown files.
+# md-toc-update.ps1 — Creates or updates TOC in Markdown files.
 #
 # Finds a TOC marker heading and replaces the block below it
 # (up to the next heading) with auto-generated anchor links.
@@ -26,20 +26,20 @@
 #   PowerShell 5.1+ - built-in on Windows 10/11 (no install needed)
 #
 # Usage:
-#   .\update-md-toc.ps1 [-Files <string[]>] [-DryRun] [-HN <string>] [-Help]
-#   .\update-md-toc.ps1              (no -Files) List MD files and show commands
+#   .\md-toc-update.ps1 [-Files <string[]>] [-DryRun] [-HN <string>] [-Help]
+#   .\md-toc-update.ps1              (no -Files) List MD files and show commands
 #
 # Parameters:
 #   -Files <string[]> : Optional. Markdown files to process.
 #   -DryRun           : Optional. Show changes without writing.
 #   -HN hN            : Optional. Limit entries to H1-HN (e.g. h2, h3).
 #   -Help             : Optional. Print usage.
-#   -FromCmdWrapper   : Internal. Used by update-md-toc.cmd.
+#   -FromCmdWrapper   : Internal. Used by md-toc-update.cmd.
 #
 # Examples:
-#   .\update-md-toc.ps1
-#   .\update-md-toc.ps1 -Files README.md
-#   .\update-md-toc.ps1 -Files README.md -DryRun -HN h3
+#   .\md-toc-update.ps1
+#   .\md-toc-update.ps1 -Files README.md
+#   .\md-toc-update.ps1 -Files README.md -DryRun -HN h3
 # =============================================================
 param(
     [string[]]$Files = @(),
@@ -78,8 +78,8 @@ function Write-Log {
 }
 
 function Show-Usage {
-    Write-Output "Usage: update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]"
-    Write-Output "       update-md-toc.sh  [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]"
+    Write-Output "Usage: md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]"
+    Write-Output "       md-toc-update.sh  [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]"
     Write-Output ""
     Write-Output "  --hN    Limit TOC depth to H1-HN. Examples: --h2, --h3, --h4"
     Write-Output ""
@@ -369,7 +369,7 @@ function Show-MdList {
         [bool]$IsFromCmd
     )
 
-    $scriptName = if ($IsFromCmd) { "update-md-toc.cmd" } else { ".\update-md-toc.ps1 -Files" }
+    $scriptName = if ($IsFromCmd) { "md-toc-update.cmd" } else { ".\md-toc-update.ps1 -Files" }
     $actionable = New-Object System.Collections.Generic.List[string]
 
     Write-Output "Found $($Targets.Count) markdown file(s) in current directory:"

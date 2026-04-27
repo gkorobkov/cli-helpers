@@ -1,5 +1,5 @@
 @echo off
-:: install-req.cmd — Installs Python requirements with the system pip3.
+:: py-req-install.cmd — Installs Python requirements with the system pip3.
 ::
 :: Runs: pip3 install -r ./requirements.txt
 :: Use when you want the global Python environment instead of a local .venv.
@@ -10,8 +10,8 @@
 ::   requirements.txt - must exist in the current directory
 ::
 :: Usage:
-::   install-req.cmd
+::   py-req-install.cmd
 ::
 :: Examples:
-::   install-req.cmd
+::   py-req-install.cmd
 pip3 install -r ./requirements.txt

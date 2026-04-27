@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-# update-md-toc.sh — Creates or updates TOC in Markdown files.
+# md-toc-update.sh — Creates or updates TOC in Markdown files.
 #
 # Pure bash — no Python or PowerShell required.
 # Finds a TOC marker heading and replaces the block below it
@@ -30,7 +30,7 @@
 #   process_file()    : Orchestrates read -> generate -> write for one file.
 #
 # Usage:
-#   ./update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]
+#   ./md-toc-update.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]
 #
 # Parameters:
 #   FILE              : Optional. One or more Markdown files (positional).
@@ -39,11 +39,11 @@
 #   --hN              : Optional. Limit entries to H1-HN (e.g. --h2, --h3).
 #
 # Examples:
-#   ./update-md-toc.sh                        List MD files and show example commands
-#   ./update-md-toc.sh README.md              Update TOC in a single file
-#   ./update-md-toc.sh README.md --dry-run    Preview without writing
-#   ./update-md-toc.sh README.md --h3         H1-H3 headings only
-#   ./update-md-toc.sh a.md b.md --dry-run    Preview multiple files
+#   ./md-toc-update.sh                        List MD files and show example commands
+#   ./md-toc-update.sh README.md              Update TOC in a single file
+#   ./md-toc-update.sh README.md --dry-run    Preview without writing
+#   ./md-toc-update.sh README.md --h3         H1-H3 headings only
+#   ./md-toc-update.sh a.md b.md --dry-run    Preview multiple files
 # =============================================================
 
 set -u
@@ -70,16 +70,16 @@ log() {
 }
 
 usage() {
-    echo "Usage: update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]"
+    echo "Usage: md-toc-update.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]"
     echo "  --hN    Limit TOC depth to H1-HN. Examples: --h2, --h3, --h4"
     echo ""
     echo "Without file arguments: scans current directory and shows example commands."
     echo ""
     echo "Examples:"
-    echo "  ./update-md-toc.sh                        List MD files and show example commands"
-    echo "  ./update-md-toc.sh README.md              Update TOC in a single file"
-    echo "  ./update-md-toc.sh README.md --dry-run    Preview without writing"
-    echo "  ./update-md-toc.sh README.md --h3         H1-H3 headings only"
+    echo "  ./md-toc-update.sh                        List MD files and show example commands"
+    echo "  ./md-toc-update.sh README.md              Update TOC in a single file"
+    echo "  ./md-toc-update.sh README.md --dry-run    Preview without writing"
+    echo "  ./md-toc-update.sh README.md --h3         H1-H3 headings only"
 }
 
 # ── Argument parsing ──────────────────────────────────────────────────────
@@ -188,13 +188,13 @@ show_md_list() {
     echo ""
     echo "To update TOC run:"
     for path in "${actionable[@]}"; do
-        echo "  ./update-md-toc.sh $path"
+        echo "  ./md-toc-update.sh $path"
     done
 
     if [[ ${#actionable[@]} -gt 1 ]]; then
         echo ""
         echo "To update all at once:"
-        echo "  ./update-md-toc.sh ${actionable[*]}"
+        echo "  ./md-toc-update.sh ${actionable[*]}"
     fi
 }
 

@@ -124,7 +124,7 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa /remove "BUILTIN\Users"
 
 ## Copies a project folder to a remote server via SSH/scp.
 
-Files: `copy-ssh-remote.cmd`, `copy-ssh-remote.sh`
+Files: `ssh-copy-remote.cmd`, `ssh-copy-remote.sh`
 
 Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
 Without `/copy` (or `--copy`) the script performs a connectivity check only.
@@ -134,22 +134,22 @@ General form:
 
 ```bat
 :: Windows CMD / BAT — config file mode
-copy-ssh-remote.cmd [/config:file.ini] [/profile:name] [/check|/copy|/list]
+ssh-copy-remote.cmd [/config:file.ini] [/profile:name] [/check|/copy|/list]
 ```
 
 ```bat
 :: Windows CMD / BAT — inline mode (no config file)
-copy-ssh-remote.cmd /user:name /server:host /local_dir:path /remote_dir:path [/ssh_key:path] [/copy]
+ssh-copy-remote.cmd /user:name /server:host /local_dir:path /remote_dir:path [/ssh_key:path] [/copy]
 ```
 
 ```bash
 # Linux / bash — config file mode
-./copy-ssh-remote.sh [--config=file.ini] [--profile=name] [--check|--copy|--list]
+./ssh-copy-remote.sh [--config=file.ini] [--profile=name] [--check|--copy|--list]
 ```
 
 ```bash
 # Linux / bash — inline mode (no config file)
-./copy-ssh-remote.sh --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path] [--copy]
+./ssh-copy-remote.sh --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path] [--copy]
 ```
 
 Parameters:
@@ -193,32 +193,32 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT — check connectivity (default)
-copy-ssh-remote.cmd
+ssh-copy-remote.cmd
 ```
 
 ```bat
 :: Windows CMD / BAT — copy using the default profile
-copy-ssh-remote.cmd /copy
+ssh-copy-remote.cmd /copy
 ```
 
 ```bat
 :: Windows CMD / BAT — copy using a named profile
-copy-ssh-remote.cmd /profile:ai-agent /copy
+ssh-copy-remote.cmd /profile:ai-agent /copy
 ```
 
 ```bat
 :: Windows CMD / BAT — inline mode, no config file
-copy-ssh-remote.cmd /user:me /server:myhost /local_dir:C:\proj /remote_dir:/home/me/proj /copy
+ssh-copy-remote.cmd /user:me /server:myhost /local_dir:C:\proj /remote_dir:/home/me/proj /copy
 ```
 
 ```bash
 # Linux / bash — list available profiles
-./copy-ssh-remote.sh --list
+./ssh-copy-remote.sh --list
 ```
 
 ```bash
 # Linux / bash — copy using a named profile
-./copy-ssh-remote.sh --profile=ai-agent --copy
+./ssh-copy-remote.sh --profile=ai-agent --copy
 ```
 
 
@@ -419,9 +419,9 @@ git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
 
 ## Creates or updates TOC in MD (Markdown) files from the command prompt.
 
-Files: `update-md-toc.cmd`, `update-md-toc.ps1`
+Files: `md-toc-update.cmd`, `md-toc-update.ps1`
 
-Windows CMD wrapper around `update-md-toc.ps1`.
+Windows CMD wrapper around `md-toc-update.ps1`.
 Parses CMD-style arguments, passes them through environment variables, and starts the PowerShell implementation.
 Positional file arguments are supported in addition to `--files`.
 
@@ -432,7 +432,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-update-md-toc.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
+md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
 ```
 
 Parameters:
@@ -447,25 +447,25 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT — list files and show example commands (no changes)
-update-md-toc.cmd
+md-toc-update.cmd
 ```
 
 ```bat
 :: Windows CMD / BAT — update TOC in a single file
-update-md-toc.cmd setup.md
+md-toc-update.cmd setup.md
 ```
 
 ```bat
 :: Windows CMD / BAT — preview changes for multiple files, H1-H3 only
-update-md-toc.cmd README.md docs.md --dry-run --h3
+md-toc-update.cmd README.md docs.md --dry-run --h3
 ```
 
 
 ## Creates or updates TOC in MD (Markdown) files with PowerShell.
 
-File: `update-md-toc.ps1`
+File: `md-toc-update.ps1`
 
-PowerShell implementation of the Markdown TOC updater. Called by `update-md-toc.cmd`; can also be run directly.
+PowerShell implementation of the Markdown TOC updater. Called by `md-toc-update.cmd`; can also be run directly.
 Finds a TOC marker heading, replaces the block until the next heading, generates anchor links, and preserves the rest of the document.
 If no TOC marker is found, inserts `# Table of contents` at the top automatically.
 Recognized TOC markers include `Оглавление`, `Оглавлние`, `TOC`, `Table of contents`, and `Contents`.
@@ -474,7 +474,7 @@ General form:
 
 ```powershell
 # Windows PowerShell
-.\update-md-toc.ps1 [-Files <string[]>] [-DryRun] [-HN hN] [-Help]
+.\md-toc-update.ps1 [-Files <string[]>] [-DryRun] [-HN hN] [-Help]
 ```
 
 Parameters:
@@ -483,7 +483,7 @@ Parameters:
 - `-DryRun`: Optional. Print changes without writing files.
 - `-HN hN`: Optional. Limit generated entries to `H1-HN` (e.g. `h2`, `h3`).
 - `-Help`: Optional. Print usage.
-- `-FromCmdWrapper`: Internal flag used by `update-md-toc.cmd`.
+- `-FromCmdWrapper`: Internal flag used by `md-toc-update.cmd`.
 
 In-code settings:
 - `TOC_START_HEADING_TEXTS`: Accepted TOC marker headings.
@@ -495,18 +495,18 @@ Examples:
 
 ```powershell
 # Windows PowerShell — list files and show example commands
-.\update-md-toc.ps1
+.\md-toc-update.ps1
 ```
 
 ```powershell
 # Windows PowerShell — preview changes, H1-H3 only
-.\update-md-toc.ps1 -Files README.md -DryRun -HN h3
+.\md-toc-update.ps1 -Files README.md -DryRun -HN h3
 ```
 
 
 ## Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).
 
-File: `update-md-toc.sh`
+File: `md-toc-update.sh`
 
 Pure bash implementation of the Markdown TOC updater — no Python or PowerShell required.
 Works on Android (Termux), Linux, and macOS out of the box.
@@ -529,7 +529,7 @@ General form:
 
 ```bash
 # bash (Android / Termux / Linux)
-./update-md-toc.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]
+./md-toc-update.sh [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN]
 ```
 
 Parameters:
@@ -543,17 +543,17 @@ Examples:
 
 ```bash
 # bash (Android / Termux / Linux) — list files and show example commands
-./update-md-toc.sh
+./md-toc-update.sh
 ```
 
 ```bash
 # bash (Android / Termux / Linux) — update TOC in a single file
-./update-md-toc.sh README.md
+./md-toc-update.sh README.md
 ```
 
 ```bash
 # bash (Android / Termux / Linux) — preview changes, H1-H3 only
-./update-md-toc.sh README.md --dry-run --h3
+./md-toc-update.sh README.md --dry-run --h3
 ```
 
 
@@ -561,7 +561,7 @@ Examples:
 
 ## Activates the local Python virtual environment.
 
-File: `activate-venv.cmd`
+File: `venv-activate.cmd`
 
 Runs the standard Windows activation script from `.venv\Scripts\activate.bat`.
 Use it after a virtual environment already exists.
@@ -570,7 +570,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-activate-venv.cmd
+venv-activate.cmd
 ```
 
 Parameters:
@@ -580,13 +580,13 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-activate-venv.cmd
+venv-activate.cmd
 ```
 
 
 ## Creates a local Python virtual environment in `.venv`.
 
-File: `create-venv.cmd`
+File: `venv-create.cmd`
 
 Creates a new virtual environment in the current repository by running `python -m venv .venv`.
 
@@ -594,7 +594,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-create-venv.cmd
+venv-create.cmd
 ```
 
 Parameters:
@@ -604,22 +604,22 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-create-venv.cmd
+venv-create.cmd
 ```
 
 
 ## Installs Python requirements into the local virtual environment.
 
-File: `install-req-venv.cmd`
+File: `venv-req-install.cmd`
 
 Runs `.venv\Scripts\python.exe -m pip install -r requirements.txt`.
-Use it after `create-venv.cmd`.
+Use it after `venv-create.cmd`.
 
 General form:
 
 ```bat
 :: Windows CMD / BAT
-install-req-venv.cmd
+venv-req-install.cmd
 ```
 
 Parameters:
@@ -629,13 +629,13 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-install-req-venv.cmd
+venv-req-install.cmd
 ```
 
 
 ## Installs Python requirements with the system `pip3`.
 
-File: `install-req.cmd`
+File: `py-req-install.cmd`
 
 Runs `pip3 install -r ./requirements.txt` from the current folder.
 Use it when you intentionally want the global or externally managed Python environment instead of `.venv`.
@@ -644,7 +644,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-install-req.cmd
+py-req-install.cmd
 ```
 
 Parameters:
@@ -654,13 +654,13 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-install-req.cmd
+py-req-install.cmd
 ```
 
 
 ## Starts Jupyter Notebook in the current directory.
 
-File: `run-jupyter.cmd`
+File: `py-jupyter-run.cmd`
 
 Launches Jupyter Notebook with `--notebook-dir %cd%`.
 The script uses `start`, so it opens in a separate window and returns immediately.
@@ -669,7 +669,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-run-jupyter.cmd
+py-jupyter-run.cmd
 ```
 
 Parameters:
@@ -679,13 +679,13 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-run-jupyter.cmd
+py-jupyter-run.cmd
 ```
 
 
 ## Starts Qodo in UI mode.
 
-File: `run-qodo-ui.cmd`
+File: `qudo-run-ui.cmd`
 
 Runs `start qodo --ui`.
 The file also contains reminder comments for Qodo installation and login.
@@ -694,7 +694,7 @@ General form:
 
 ```bat
 :: Windows CMD / BAT
-run-qodo-ui.cmd
+qudo-run-ui.cmd
 ```
 
 Parameters:
@@ -704,7 +704,7 @@ Examples:
 
 ```bat
 :: Windows CMD / BAT
-run-qodo-ui.cmd
+qudo-run-ui.cmd
 ```
 
 
