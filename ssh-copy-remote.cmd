@@ -41,30 +41,30 @@ setlocal enabledelayedexpansion
 :: ssh-copy-remote.cmd Two modes:
 ::
 ::  1. Config file:
-::       /config:file.ini    config file  (default: first *.remote.ini)
-::       /profile:name       profile      (default: default_profile from config)
-::       /list               list profiles and exit
+::       --config=file.ini    config file  (default: first *.remote.ini)
+::       --profile=name       profile      (default: default_profile from config)
+::       --list               list profiles and exit
 ::
 ::  2. Inline (no config file needed):
-::       /user:name          SSH user
-::       /server:host        SSH server
-::       /ssh_key:path       SSH key file
-::       /from:path /to:path  local->remote pair (repeat for multiple)
-::       /local_path:path /remote_path:path  (legacy single pair)
-::       /deploy_hint:cmd    (optional) shown after copy
+::       --user=name          SSH user
+::       --server=host        SSH server
+::       --ssh_key=path       SSH key file
+::       --from=path --to=path  local->remote pair (repeat for multiple)
+::       --local_path=path --remote_path=path  (legacy single pair)
+::       --deploy_hint=cmd    (optional) shown after copy
 ::
 ::  Common:
-::       /copy               run copy (default: check only)
-::       /check              check only
+::       --copy               run copy (default: check only)
+::       --check              check only
 ::
 ::  Examples:
 ::    ssh-copy-remote.cmd
-::    ssh-copy-remote.cmd /copy
-::    ssh-copy-remote.cmd /profile:ai-agent /copy
-::    ssh-copy-remote.cmd /config:C:\other\cfg.ini /profile:ai-agent /copy
-::    ssh-copy-remote.cmd /user:me /server:host /ssh_key:C:\key /from:C:\proj /to:/home/me/proj /copy
-::    ssh-copy-remote.cmd /user:me /server:host /from:C:\a.txt /to:/home/me/a.txt /from:C:\dir /to:/home/me/dir /copy
-::    ssh-copy-remote.cmd /user:me /server:host /local_path:C:\proj /remote_path:/home/me/proj /copy
+::    ssh-copy-remote.cmd --copy
+::    ssh-copy-remote.cmd --profile=ai-agent --copy
+::    ssh-copy-remote.cmd --config=C:\other\cfg.ini --profile=ai-agent --copy
+::    ssh-copy-remote.cmd --user=me --server=host --ssh_key=C:\key --from=C:\proj --to=/home/me/proj --copy
+::    ssh-copy-remote.cmd --user=me --server=host --from=C:\a.txt --to=/home/me/a.txt --from=C:\dir --to=/home/me/dir --copy
+::    ssh-copy-remote.cmd --user=me --server=host --local_path=C:\proj --remote_path=/home/me/proj --copy
 :: =============================================================
 ::  Config file format (save as *.remote.ini):
 ::
@@ -121,42 +121,42 @@ set "_PENDING_FROM="
 if "%~1"=="" goto :args_done
 set "ARG=%~1"
 
-if /i "%ARG:~0,8%"=="/config:"        ( set "CFG=%ARG:~8%"           & shift & goto :parse_args )
-if /i "%ARG:~0,9%"=="/profile:"       ( set "PROFILE=%ARG:~9%"        & shift & goto :parse_args )
-if /i "%ARG:~0,6%"=="/user:"          ( set "RUSER=%ARG:~6%"          & shift & goto :parse_args )
-if /i "%ARG:~0,8%"=="/server:"        ( set "SERVER=%ARG:~8%"         & shift & goto :parse_args )
-if /i "%ARG:~0,9%"=="/ssh_key:"       ( set "SSH_KEY=%ARG:~9%"        & shift & goto :parse_args )
-if /i "%ARG:~0,12%"=="/local_path:"   ( set "LOCAL_PATH=%ARG:~12%"    & shift & goto :parse_args )
-if /i "%ARG:~0,13%"=="/remote_path:"  ( set "REMOTE_PATH=%ARG:~13%"   & shift & goto :parse_args )
-if /i "%ARG:~0,13%"=="/deploy_hint:"  ( set "DEPLOY_HINT=%ARG:~13%"   & shift & goto :parse_args )
-if /i "%ARG:~0,6%"=="/from:"          ( set "_PENDING_FROM=%ARG:~6%"  & shift & goto :parse_args )
-if /i "%ARG:~0,4%"=="/to:" (
+if /i "%ARG:~0,9%"=="--config="       ( set "CFG=%ARG:~9%"           & shift & goto :parse_args )
+if /i "%ARG:~0,10%"=="--profile="     ( set "PROFILE=%ARG:~10%"       & shift & goto :parse_args )
+if /i "%ARG:~0,7%"=="--user="         ( set "RUSER=%ARG:~7%"          & shift & goto :parse_args )
+if /i "%ARG:~0,9%"=="--server="       ( set "SERVER=%ARG:~9%"         & shift & goto :parse_args )
+if /i "%ARG:~0,10%"=="--ssh_key="     ( set "SSH_KEY=%ARG:~10%"       & shift & goto :parse_args )
+if /i "%ARG:~0,13%"=="--local_path="  ( set "LOCAL_PATH=%ARG:~13%"    & shift & goto :parse_args )
+if /i "%ARG:~0,14%"=="--remote_path=" ( set "REMOTE_PATH=%ARG:~14%"   & shift & goto :parse_args )
+if /i "%ARG:~0,14%"=="--deploy_hint=" ( set "DEPLOY_HINT=%ARG:~14%"   & shift & goto :parse_args )
+if /i "%ARG:~0,7%"=="--from="         ( set "_PENDING_FROM=%ARG:~7%"  & shift & goto :parse_args )
+if /i "%ARG:~0,5%"=="--to=" (
     if not defined _PENDING_FROM (
         echo.
-        echo  [ERROR]  /to: without preceding /from:
+        echo  [ERROR]  --to= without preceding --from=
         echo.
         exit /b 1
     )
     set "PAIR_!PAIR_COUNT!_LOCAL=!_PENDING_FROM!"
-    set "PAIR_!PAIR_COUNT!_REMOTE=%ARG:~4%"
+    set "PAIR_!PAIR_COUNT!_REMOTE=%ARG:~5%"
     set /a PAIR_COUNT+=1
     set "_PENDING_FROM="
     shift & goto :parse_args
 )
-if /i "%ARG%"=="/copy"                ( set "CMD=copy"                & shift & goto :parse_args )
-if /i "%ARG%"=="/check"               ( set "CMD=check"               & shift & goto :parse_args )
-if /i "%ARG%"=="/list"                ( set "CMD=list"                & shift & goto :parse_args )
+if /i "%ARG%"=="--copy"               ( set "CMD=copy"                & shift & goto :parse_args )
+if /i "%ARG%"=="--check"              ( set "CMD=check"               & shift & goto :parse_args )
+if /i "%ARG%"=="--list"               ( set "CMD=list"                & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
-echo  Valid:   /config:  /profile:  /user:  /server:  /ssh_key:  /local_path:  /remote_path:  /deploy_hint:  /from:  /to:  /check  /copy  /list
+echo  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_path=  --remote_path=  --deploy_hint=  --from=  --to=  --check  --copy  --list
 echo.
 exit /b 1
 
 :args_done
 if defined _PENDING_FROM (
     echo.
-    echo  [ERROR]  /from: without following /to: for path: %_PENDING_FROM%
+    echo  [ERROR]  --from= without following --to= for path: %_PENDING_FROM%
     echo.
     exit /b 1
 )
@@ -192,8 +192,8 @@ if "%CFG%"=="" (
 if "%CFG%"=="" (
     echo.
     echo  [ERROR]  No config file found. Use inline params or create *.remote.ini
-    echo  Config:  /config:file.ini  or place *.remote.ini in current folder
-    echo  Inline:  /user:name /server:host /from:local /to:remote [/from:local /to:remote ...]
+    echo  Config:  --config=file.ini  or place *.remote.ini in current folder
+    echo  Inline:  --user=name --server=host --from=local --to=remote [--from=local --to=remote ...]
     echo.
     exit /b 1
 )
@@ -219,8 +219,8 @@ if "%PROFILE%"=="" (
 if "%PROFILE%"=="" (
     echo.
     echo  [ERROR]  No profile specified and no default_profile in config.
-    echo  Use /profile:name or add default_profile=name to config.
-    echo  Run /list to see available profiles.
+    echo  Use --profile=name or add default_profile=name to config.
+    echo  Run --list to see available profiles.
     echo.
     exit /b 1
 )
@@ -253,7 +253,7 @@ for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
 if "%RUSER%"=="" (
     echo.
     echo  [ERROR]  Profile not found in config: %PROFILE%
-    echo  Run /list to see available profiles.
+    echo  Run --list to see available profiles.
     echo.
     exit /b 1
 )
@@ -384,7 +384,7 @@ echo.
 if "%ALL_OK%"=="0" ( echo  Fix errors above before copying. & echo. & exit /b 1 )
 
 if /i "%CMD%"=="check" (
-    echo  All checks passed. Run with /copy to start copying.
+    echo  All checks passed. Run with --copy to start copying.
     echo.
     goto :eof
 )
