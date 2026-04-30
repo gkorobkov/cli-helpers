@@ -1,27 +1,27 @@
 @echo off
-:: md-toc-update.cmd — Creates or updates Table of Contents in Markdown files.
-::
-:: Finds a heading named "Оглавление", "TOC", "Table of contents", or "Contents"
-:: and replaces the block below it (until the next heading) with generated TOC links.
-:: If no TOC marker heading is found, inserts "# Table of contents" at the top.
-::
-:: Without file arguments: scans for *.md files, shows TOC status per file,
-:: and prints ready-to-run example commands — nothing is written.
-::
-:: Dependencies:
-::   PowerShell        - built-in on Windows 10/11 (no install needed)
-::   md-toc-update.ps1 - sibling script in the same folder
-::
-:: Usage:
-::   md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
-::
-:: Examples:
-::   md-toc-update.cmd                              List MD files and show example commands
-::   md-toc-update.cmd setup.md                    Update TOC in a single file
-::   md-toc-update.cmd a.md b.md                   Update multiple files
-::   md-toc-update.cmd setup.md --dry-run           Preview changes without writing
-::   md-toc-update.cmd setup.md --h3                Include H1-H3 headings only
-::   md-toc-update.cmd --files a.md b.md --dry-run  Explicit --files form also works
+REM md-toc-update.cmd - Creates or updates Table of Contents in Markdown files.
+REM
+REM Finds a heading named "??????????", "TOC", "Table of contents", or "Contents"
+REM and replaces the block below it (until the next heading) with generated TOC links.
+REM If no TOC marker heading is found, inserts "# Table of contents" at the top.
+REM
+REM Without file arguments: scans for *.md files, shows TOC status per file,
+REM and prints ready-to-run example commands - nothing is written.
+REM
+REM Dependencies:
+REM   PowerShell        - built-in on Windows 10/11 (no install needed)
+REM   md-toc-update.ps1 - sibling script in the same folder
+REM
+REM Usage:
+REM   md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
+REM
+REM Examples:
+REM   md-toc-update.cmd                              List MD files and show example commands
+REM   md-toc-update.cmd setup.md                    Update TOC in a single file
+REM   md-toc-update.cmd a.md b.md                   Update multiple files
+REM   md-toc-update.cmd setup.md --dry-run          Preview changes without writing
+REM   md-toc-update.cmd setup.md --h3               Include H1-H3 headings only
+REM   md-toc-update.cmd --files a.md b.md --dry-run Explicit --files form also works
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "SCRIPT_PS1=%~dp0md-toc-update.ps1"
