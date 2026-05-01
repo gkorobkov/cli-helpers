@@ -1,23 +1,18 @@
 @ECHO OFF
-:: git-setup.cmd — Shows or updates global Git user name and email.
-::
-:: Shows current git config user.name and user.email.
-:: If arguments are passed, updates the corresponding global Git config values first.
-::
-:: Dependencies:
-::   git - https://git-scm.com/downloads
-::         Windows: winget install Git.Git
-::
-:: Usage:
-::   git-setup.cmd [user_name] [user_email]
-::
-:: Parameters:
-::   user_name  : Optional. Git user name.
-::   user_email : Optional. Git user email.
-::
-:: Examples:
-::   git-setup.cmd
-::   git-setup.cmd "User Name" user@example.com
+REM git-setup.cmd — Shows or updates global Git user name and email.
+REM Shows current git config user.name and user.email.
+REM If arguments are passed, updates the corresponding global Git config values first.
+REM Dependencies:
+REM   git - https://git-scm.com/downloads
+REM         Windows: winget install Git.Git
+REM Usage:
+REM   git-setup.cmd [user_name] [user_email]
+REM Parameters:
+REM   user_name  : Optional. Git user name.
+REM   user_email : Optional. Git user email.
+REM Examples:
+REM   git-setup.cmd
+REM   git-setup.cmd "User Name" user@example.com
 setlocal
 
 set git_user_name=%~1

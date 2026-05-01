@@ -1,30 +1,24 @@
 @echo off
-:: current-path.cmd — Checks, lists, adds, or removes the current directory in PATH.
-::
-:: Wraps PowerShell to inspect and modify the persistent user PATH.
-:: Always prints the current working directory first for clarity.
-:: add/delete also update the current cmd.exe session immediately.
-::
-:: Dependencies:
-::   PowerShell - built-in on Windows 10/11 (no install needed)
-::
-:: Usage:
-::   current-path.cmd [list|add|delete]
-::
-:: Modes:
-::   (none)  : Print YES/NO — whether the current directory is in PATH.
-::   list    : Print all PATH entries from the current cmd.exe session.
-::   add     : Add the current directory to persistent user PATH if missing.
-::   delete  : Remove the current directory from persistent user PATH if present.
-::
-:: Note: PowerShell keeps its own PATH snapshot; add/delete will not affect
-::       an open PowerShell session until it is restarted.
-::
-:: Examples:
-::   current-path.cmd
-::   current-path.cmd list
-::   current-path.cmd add
-::   current-path.cmd delete
+REM current-path.cmd — Checks, lists, adds, or removes the current directory in PATH.
+REM Wraps PowerShell to inspect and modify the persistent user PATH.
+REM Always prints the current working directory first for clarity.
+REM add/delete also update the current cmd.exe session immediately.
+REM Dependencies:
+REM   PowerShell - built-in on Windows 10/11 (no install needed)
+REM Usage:
+REM   current-path.cmd [list|add|delete]
+REM Modes:
+REM   (none)  : Print YES/NO — whether the current directory is in PATH.
+REM   list    : Print all PATH entries from the current cmd.exe session.
+REM   add     : Add the current directory to persistent user PATH if missing.
+REM   delete  : Remove the current directory from persistent user PATH if present.
+REM Note: PowerShell keeps its own PATH snapshot; add/delete will not affect
+REM       an open PowerShell session until it is restarted.
+REM Examples:
+REM   current-path.cmd
+REM   current-path.cmd list
+REM   current-path.cmd add
+REM   current-path.cmd delete
 
 set "mode=%~1"
 if not defined mode set "mode=check"

@@ -1,24 +1,20 @@
 @echo off
-:: git-stash-list.cmd — Shows all Git stashes with additional stash details.
-::
-:: Runs git stash list and then git stash show for each stash entry.
-:: Use it when the default stash list output is too compact.
-::
-:: Dependencies:
-::   git - https://git-scm.com/downloads
-::         Windows: winget install Git.Git
-::
-:: Usage:
-::   git-stash-list.cmd
-::
-:: Examples:
-::   git-stash-list.cmd
+REM git-stash-list.cmd — Shows all Git stashes with additional stash details.
+REM Runs git stash list and then git stash show for each stash entry.
+REM Use it when the default stash list output is too compact.
+REM Dependencies:
+REM   git - https://git-scm.com/downloads
+REM         Windows: winget install Git.Git
+REM Usage:
+REM   git-stash-list.cmd
+REM Examples:
+REM   git-stash-list.cmd
 
 echo Git Stash List
 echo ==============
 echo.
 
-:: Get the list of stashes
+REM Get the list of stashes
 git stash list
 for /f "tokens=1 delims=:" %%i in ('git stash list') do (
     echo === %%i ===
@@ -30,4 +26,4 @@ for /f "tokens=1 delims=:" %%i in ('git stash list') do (
 
 echo.
 echo Stash listing completed.
-:: pause
+REM pause

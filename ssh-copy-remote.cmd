@@ -1,100 +1,84 @@
 @echo off
 setlocal enabledelayedexpansion
-:: =============================================================
-:: ssh-copy-remote.cmd - copy project to remote server via SSH/scp
-::
-::  Config: *.remote.ini or *.local.ini in current folder (not in git)
-::  Requires: ssh, scp, rsync
-::
-::  Dependencies:
-::    ssh, scp  - OpenSSH Client (built-in on Windows 10/11)
-::                If missing: Settings > Apps > Optional features > OpenSSH Client
-::                Or: winget install Microsoft.OpenSSH.Beta
-::                Docs: https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
-::
-::    rsync     - required only for folder copy (excludes .env and .gitignore files)
-::                scoop  : scoop install rsync        (https://scoop.sh)
-::                choco  : choco install rsync         (https://chocolatey.org)
-::                direct : download cwRsync from https://itefix.net/cwrsync (free version)
-::                         extract and add to PATH, or place rsync.exe next to this script
-::
-::  Transfer options (change defaults in the "set" lines below the argument block):
-::
-::    SCP_OPTS    scp flags for file copy      (default: empty)
-::                  -C        compress during transfer
-::                  -p        preserve timestamps and permissions
-::                  -l 1000   limit bandwidth in kbit/s
-::
-::    RSYNC_FLAGS rsync flags for folder copy  (default: -avz)
-::                  -a        archive: recursive + preserve permissions, timestamps, symlinks
-::                  -v        verbose output (show each transferred file)
-::                  -z        compress during transfer
-::                  -n        dry run: show what would be copied without copying
-::                  --delete  remove remote files that are absent in source
-::
-::    RSYNC_EXCL  rsync exclude pattern        (default: --exclude=.env)
-::                  .gitignore rules are always applied via --filter=:- .gitignore
-::  
-::  See full options description, usage and examples in the end of this script.
-::  
-::  
-:: ssh-copy-remote.cmd Two modes:
-::
-::  1. Config file:
-::       --config=file.ini    config file  (default: first *.remote.ini)
-::       --profile=name       profile      (default: default_profile from config)
-::       --list               list profiles and exit
-::
-::  2. Inline (no config file needed):
-::       --user=name          SSH user
-::       --server=host        SSH server
-::       --ssh_key=path       SSH key file
-::       --from=path --to=path  local->remote pair (repeat for multiple)
-::       --local_path=path --remote_path=path  (legacy single pair)
-::       --deploy_hint=cmd    (optional) shown after copy
-::
-::  Common:
-::       --copy               run copy (default: check only)
-::       --check              check only
-::
-::  Examples:
-::    ssh-copy-remote.cmd
-::    ssh-copy-remote.cmd --copy
-::    ssh-copy-remote.cmd --profile=ai-agent --copy
-::    ssh-copy-remote.cmd --config=C:\other\cfg.ini --profile=ai-agent --copy
-::    ssh-copy-remote.cmd --user=me --server=host --ssh_key=C:\key --from=C:\proj --to=/home/me/proj --copy
-::    ssh-copy-remote.cmd --user=me --server=host --from=C:\a.txt --to=/home/me/a.txt --from=C:\dir --to=/home/me/dir --copy
-::    ssh-copy-remote.cmd --user=me --server=host --local_path=C:\proj --remote_path=/home/me/proj --copy
-:: =============================================================
-::  Config file format (save as *.remote.ini):
-::
-::    default_profile=my-project
-::
-::    [my-project]
-::    description=My Project - myserver.com
-::    user=myuser
-::    server=myserver.com
-::    ssh_key=C:\Users\Me\.ssh\id_rsa
-::    local_path=C:\Projects\my-project
-::    remote_path=/home/myuser/my-project
-::    deploy_hint=cd /home/myuser/my-project && docker compose up -d
-::    ; additional pairs (optional):
-::    from_1=C:\Projects\config.txt
-::    to_1=/home/myuser/config.txt
-::    from_2=C:\Projects\nginx
-::    to_2=/home/myuser/nginx
-::
-::    [another-project]
-::    description=Another Project - myserver.com
-::    user=myuser
-::    server=myserver.com
-::    ssh_key=C:\Users\Me\.ssh\id_rsa
-::    local_path=C:\Projects\another-project
-::    remote_path=/home/myuser/another-project
-::    deploy_hint=cd /home/myuser/another-project && npm start
-:: =============================================================
+REM =============================================================
+REM ssh-copy-remote.cmd - copy project to remote server via SSH/scp
+REM  Config: *.remote.ini or *.local.ini in current folder (not in git)
+REM  Requires: ssh, scp, rsync
+REM  Dependencies:
+REM    ssh, scp  - OpenSSH Client (built-in on Windows 10/11)
+REM                If missing: Settings > Apps > Optional features > OpenSSH Client
+REM                Or: winget install Microsoft.OpenSSH.Beta
+REM                Docs: https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
+REM    rsync     - required only for folder copy (excludes .env and .gitignore files)
+REM                scoop  : scoop install rsync        (https://scoop.sh)
+REM                choco  : choco install rsync         (https://chocolatey.org)
+REM                direct : download cwRsync from https://itefix.net/cwrsync (free version)
+REM                         extract and add to PATH, or place rsync.exe next to this script
+REM  Transfer options (change defaults in the "set" lines below the argument block):
+REM    SCP_OPTS    scp flags for file copy      (default: empty)
+REM                  -C        compress during transfer
+REM                  -p        preserve timestamps and permissions
+REM                  -l 1000   limit bandwidth in kbit/s
+REM    RSYNC_FLAGS rsync flags for folder copy  (default: -avz)
+REM                  -a        archive: recursive + preserve permissions, timestamps, symlinks
+REM                  -v        verbose output (show each transferred file)
+REM                  -z        compress during transfer
+REM                  -n        dry run: show what would be copied without copying
+REM                  --delete  remove remote files that are absent in source
+REM    RSYNC_EXCL  rsync exclude pattern        (default: --exclude=.env)
+REM                  .gitignore rules are always applied via --filter=:- .gitignore
+REM  See full options description, usage and examples in the end of this script.
+REM  
+REM ssh-copy-remote.cmd Two modes:
+REM  1. Config file:
+REM       --config=file.ini    config file  (default: first *.remote.ini)
+REM       --profile=name       profile      (default: default_profile from config)
+REM       --list               list profiles and exit
+REM  2. Inline (no config file needed):
+REM       --user=name          SSH user
+REM       --server=host        SSH server
+REM       --ssh_key=path       SSH key file
+REM       --from=path --to=path  local->remote pair (repeat for multiple)
+REM       --local_path=path --remote_path=path  (legacy single pair)
+REM       --deploy_hint=cmd    (optional) shown after copy
+REM  Common:
+REM       --copy               run copy (default: check only)
+REM       --check              check only
+REM  Examples:
+REM    ssh-copy-remote.cmd
+REM    ssh-copy-remote.cmd --copy
+REM    ssh-copy-remote.cmd --profile=ai-agent --copy
+REM    ssh-copy-remote.cmd --config=C:\other\cfg.ini --profile=ai-agent --copy
+REM    ssh-copy-remote.cmd --user=me --server=host --ssh_key=C:\key --from=C:\proj --to=/home/me/proj --copy
+REM    ssh-copy-remote.cmd --user=me --server=host --from=C:\a.txt --to=/home/me/a.txt --from=C:\dir --to=/home/me/dir --copy
+REM    ssh-copy-remote.cmd --user=me --server=host --local_path=C:\proj --remote_path=/home/me/proj --copy
+REM =============================================================
+REM  Config file format (save as *.remote.ini):
+REM    default_profile=my-project
+REM    [my-project]
+REM    description=My Project - myserver.com
+REM    user=myuser
+REM    server=myserver.com
+REM    ssh_key=C:\Users\Me\.ssh\id_rsa
+REM    local_path=C:\Projects\my-project
+REM    remote_path=/home/myuser/my-project
+REM    deploy_hint=cd /home/myuser/my-project && docker compose up -d
+REM    ; additional pairs (optional):
+REM    from_1=C:\Projects\config.txt
+REM    to_1=/home/myuser/config.txt
+REM    from_2=C:\Projects\nginx
+REM    to_2=/home/myuser/nginx
+REM    [another-project]
+REM    description=Another Project - myserver.com
+REM    user=myuser
+REM    server=myserver.com
+REM    ssh_key=C:\Users\Me\.ssh\id_rsa
+REM    local_path=C:\Projects\another-project
+REM    remote_path=/home/myuser/another-project
+REM    deploy_hint=cd /home/myuser/another-project && npm start
+REM =============================================================
 
-:: --- Transfer options (edit here to customize) ---
+REM --- Transfer options (edit here to customize) ---
 set "SCP_OPTS="
 set "RSYNC_FLAGS=-avz"
 set "RSYNC_EXCL=--exclude=.env"
@@ -114,23 +98,50 @@ set "_PENDING_FROM="
 
 
 
-:: =============================================================
-:: Parse arguments
-:: =============================================================
+REM =============================================================
+REM Parse arguments
+REM =============================================================
 :parse_args
 if "%~1"=="" goto :args_done
 set "ARG=%~1"
+REM normalize accidental surrounding quotes/spaces (PowerShell may rewrite args)
+for /f "tokens=* delims= " %%A in ("%ARG%") do set "ARG=%%~A"
+if "%ARG:~-1%"=="=" set "ARG=%ARG:~0,-1%"
+for /f "tokens=1 delims= " %%A in ("%ARG%") do set "ARG=%%A"
+REM Set SSH_COPY_REMOTE_DEBUG=1 to see per-arg parsing
+if defined SSH_COPY_REMOTE_DEBUG echo DBG ARG_bang=[!ARG!] ARG_pct=[%ARG%] ARG2=[%~2]
 
-if /i "%ARG:~0,9%"=="--config="       ( set "CFG=%ARG:~9%"           & shift & goto :parse_args )
-if /i "%ARG:~0,10%"=="--profile="     ( set "PROFILE=%ARG:~10%"       & shift & goto :parse_args )
-if /i "%ARG:~0,7%"=="--user="         ( set "RUSER=%ARG:~7%"          & shift & goto :parse_args )
-if /i "%ARG:~0,9%"=="--server="       ( set "SERVER=%ARG:~9%"         & shift & goto :parse_args )
-if /i "%ARG:~0,10%"=="--ssh_key="     ( set "SSH_KEY=%ARG:~10%"       & shift & goto :parse_args )
-if /i "%ARG:~0,13%"=="--local_path="  ( set "LOCAL_PATH=%ARG:~13%"    & shift & goto :parse_args )
-if /i "%ARG:~0,14%"=="--remote_path=" ( set "REMOTE_PATH=%ARG:~14%"   & shift & goto :parse_args )
-if /i "%ARG:~0,14%"=="--deploy_hint=" ( set "DEPLOY_HINT=%ARG:~14%"   & shift & goto :parse_args )
-if /i "%ARG:~0,7%"=="--from="         ( set "_PENDING_FROM=%ARG:~7%"  & shift & goto :parse_args )
-if /i "%ARG:~0,5%"=="--to=" (
+REM --- Support "--key value" form in addition to "--key=value" ---
+if /i "%ARG%"=="--config"      ( set "CFG=%~2"           & if "!CFG:~0,1!"=="=" set "CFG=!CFG:~1!"                       & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--profile"     ( set "PROFILE=%~2"       & if "!PROFILE:~0,1!"=="=" set "PROFILE=!PROFILE:~1!"           & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--user"        ( set "RUSER=%~2"         & if "!RUSER:~0,1!"=="=" set "RUSER=!RUSER:~1!"                 & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--server"      ( set "SERVER=%~2"        & if "!SERVER:~0,1!"=="=" set "SERVER=!SERVER:~1!"              & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--ssh_key"     ( set "SSH_KEY=%~2"       & if "!SSH_KEY:~0,1!"=="=" set "SSH_KEY=!SSH_KEY:~1!"           & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--local_path"  ( set "LOCAL_PATH=%~2"    & if "!LOCAL_PATH:~0,1!"=="=" set "LOCAL_PATH=!LOCAL_PATH:~1!"  & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--remote_path" ( set "REMOTE_PATH=%~2"   & if "!REMOTE_PATH:~0,1!"=="=" set "REMOTE_PATH=!REMOTE_PATH:~1!" & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--deploy_hint" ( set "DEPLOY_HINT=%~2"   & if "!DEPLOY_HINT:~0,1!"=="=" set "DEPLOY_HINT=!DEPLOY_HINT:~1!" & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--from"        ( set "_PENDING_FROM=%~2" & if "!_PENDING_FROM:~0,1!"=="=" set "_PENDING_FROM=!_PENDING_FROM:~1!" & shift & shift & goto :parse_args )
+if /i "%ARG%"=="--to" (
+    if not defined _PENDING_FROM ( echo. & echo  [ERROR]  --to without preceding --from & echo. & exit /b 1 )
+    set "PAIR_!PAIR_COUNT!_LOCAL=!_PENDING_FROM!"
+    set "_TMP_TO=%~2"
+    if "!_TMP_TO:~0,1!"=="=" set "_TMP_TO=!_TMP_TO:~1!"
+    set "PAIR_!PAIR_COUNT!_REMOTE=!_TMP_TO!"
+    set /a PAIR_COUNT+=1
+    set "_PENDING_FROM="
+    shift & shift & goto :parse_args
+)
+
+if /i "!ARG:~0,9!"=="--config="       ( set "CFG=!ARG:~9!"           & shift & goto :parse_args )
+if /i "!ARG:~0,10!"=="--profile="     ( set "PROFILE=!ARG:~10!"       & shift & goto :parse_args )
+if /i "!ARG:~0,7!"=="--user="         ( set "RUSER=!ARG:~7!"          & shift & goto :parse_args )
+if /i "!ARG:~0,9!"=="--server="       ( set "SERVER=!ARG:~9!"         & shift & goto :parse_args )
+if /i "!ARG:~0,10!"=="--ssh_key="     ( set "SSH_KEY=!ARG:~10!"       & shift & goto :parse_args )
+if /i "!ARG:~0,13!"=="--local_path="  ( set "LOCAL_PATH=!ARG:~13!"    & shift & goto :parse_args )
+if /i "!ARG:~0,14!"=="--remote_path=" ( set "REMOTE_PATH=!ARG:~14!"   & shift & goto :parse_args )
+if /i "!ARG:~0,14!"=="--deploy_hint=" ( set "DEPLOY_HINT=!ARG:~14!"   & shift & goto :parse_args )
+if /i "!ARG:~0,7!"=="--from="         ( set "_PENDING_FROM=!ARG:~7!"  & shift & goto :parse_args )
+if /i "!ARG:~0,5!"=="--to=" (
     if not defined _PENDING_FROM (
         echo.
         echo  [ERROR]  --to= without preceding --from=
@@ -143,9 +154,13 @@ if /i "%ARG:~0,5%"=="--to=" (
     set "_PENDING_FROM="
     shift & goto :parse_args
 )
-if /i "%ARG%"=="--copy"               ( set "CMD=copy"                & shift & goto :parse_args )
-if /i "%ARG%"=="--check"              ( set "CMD=check"               & shift & goto :parse_args )
-if /i "%ARG%"=="--list"               ( set "CMD=list"                & shift & goto :parse_args )
+if /i "!ARG!"=="--copy"               ( set "CMD=copy"                & shift & goto :parse_args )
+if /i "!ARG!"=="--check"              ( set "CMD=check"               & shift & goto :parse_args )
+if /i "!ARG!"=="--list"               ( set "CMD=list"                & shift & goto :parse_args )
+REM --- Legacy "/copy" form ---
+if /i "!ARG!"=="/copy"                ( set "CMD=copy"                & shift & goto :parse_args )
+if /i "!ARG!"=="/check"               ( set "CMD=check"               & shift & goto :parse_args )
+if /i "!ARG!"=="/list"                ( set "CMD=list"                & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
@@ -161,7 +176,7 @@ if defined _PENDING_FROM (
     exit /b 1
 )
 
-:: --- Convert legacy /local_path: /remote_path: to a pair ---
+REM --- Convert legacy /local_path: /remote_path: to a pair ---
 if defined LOCAL_PATH if defined REMOTE_PATH (
     set "PAIR_!PAIR_COUNT!_LOCAL=!LOCAL_PATH!"
     set "PAIR_!PAIR_COUNT!_REMOTE=!REMOTE_PATH!"
@@ -170,21 +185,21 @@ if defined LOCAL_PATH if defined REMOTE_PATH (
 set "LOCAL_PATH="
 set "REMOTE_PATH="
 
-:: --- Resolve inline pair local paths to absolute ---
+REM --- Resolve inline pair local paths to absolute ---
 set /a _PAIR_LAST=PAIR_COUNT-1
 for /l %%i in (0,1,%_PAIR_LAST%) do (
     set "_TMP=!PAIR_%%i_LOCAL!"
     for %%F in ("!_TMP!") do set "PAIR_%%i_LOCAL=%%~fF"
 )
 
-:: =============================================================
-:: Inline mode: use params directly if all required ones provided
-:: =============================================================
+REM =============================================================
+REM Inline mode: use params directly if all required ones provided
+REM =============================================================
 if defined RUSER if defined SERVER if !PAIR_COUNT! gtr 0 goto :run_check
 
-:: =============================================================
-:: Config file mode
-:: =============================================================
+REM =============================================================
+REM Config file mode
+REM =============================================================
 if "%CFG%"=="" (
     for %%F in ("*.remote.ini") do if not defined CFG set "CFG=%%~fF"
     for %%F in ("*.local.ini")  do if not defined CFG set "CFG=%%~fF"
@@ -206,7 +221,7 @@ if not exist "%CFG%" (
 
 if /i "%CMD%"=="list" goto :show_list
 
-:: --- Get default_profile (top-level, before any section) ---
+REM --- Get default_profile (top-level, before any section) ---
 if "%PROFILE%"=="" (
     set "_IN_SECT=0"
     for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
@@ -225,7 +240,7 @@ if "%PROFILE%"=="" (
     exit /b 1
 )
 
-:: --- Load profile section ---
+REM --- Load profile section ---
 set "_IN_PROF=0"
 set "_CFG_LOCAL="
 set "_CFG_REMOTE="
@@ -258,14 +273,14 @@ if "%RUSER%"=="" (
     exit /b 1
 )
 
-:: --- Add legacy local_path/remote_path pair ---
+REM --- Add legacy local_path/remote_path pair ---
 if defined _CFG_LOCAL if defined _CFG_REMOTE (
     set "PAIR_!PAIR_COUNT!_LOCAL=!_CFG_LOCAL!"
     set "PAIR_!PAIR_COUNT!_REMOTE=!_CFG_REMOTE!"
     set /a PAIR_COUNT+=1
 )
 
-:: --- Add from_N/to_N pairs from config ---
+REM --- Add from_N/to_N pairs from config ---
 for /l %%i in (1,1,20) do (
     if defined _CFG_FROM_%%i (
         set "PAIR_!PAIR_COUNT!_LOCAL=!_CFG_FROM_%%i!"
@@ -282,14 +297,14 @@ if !PAIR_COUNT! equ 0 (
     exit /b 1
 )
 
-:: --- Resolve config pair local paths ---
+REM --- Resolve config pair local paths ---
 set /a _PAIR_LAST=PAIR_COUNT-1
 for /l %%i in (0,1,%_PAIR_LAST%) do (
     set "_TMP=!PAIR_%%i_LOCAL!"
     for %%F in ("!_TMP!") do set "PAIR_%%i_LOCAL=%%~fF"
 )
 
-:: =============================================================
+REM =============================================================
 :run_check
 echo.
 echo  ============================================
@@ -311,7 +326,7 @@ if defined SSH_KEY set "SSH_KEY_ARG=-i "%SSH_KEY%""
 
 set "ALL_OK=1"
 
-:: --- Check SSH key once ---
+REM --- Check SSH key once ---
 if defined SSH_KEY (
     if exist "%SSH_KEY%" (
         echo  [OK]     SSH key found
@@ -321,7 +336,7 @@ if defined SSH_KEY (
     )
 )
 
-:: --- Check each pair ---
+REM --- Check each pair ---
 set /a _PAIR_LAST=PAIR_COUNT-1
 for /l %%i in (0,1,%_PAIR_LAST%) do (
     set "_LOCAL=!PAIR_%%i_LOCAL!"
@@ -389,7 +404,7 @@ if /i "%CMD%"=="check" (
     goto :eof
 )
 
-:: =============================================================
+REM =============================================================
 :do_copy
 echo  Starting copy...
 echo.
@@ -458,12 +473,12 @@ if defined DEPLOY_HINT ( echo. & echo  On server: & echo    %DEPLOY_HINT% )
 echo.
 goto :eof
 
-:: =============================================================
+REM =============================================================
 :show_list
 echo.
 echo  Config: %CFG%
 
-:: Find default_profile
+REM Find default_profile
 set "_DEF="
 set "_IN_SECT=0"
 for /f "usebackq tokens=1,* delims==" %%A in ("%CFG%") do (
@@ -500,59 +515,51 @@ echo.
 goto :eof
 
 
-::  rsync reference (https://linux.die.net/man/1/rsync):
-::
-::  Mode flags:
-::    -a, --archive         archive mode = -rlptgoD (recursive, preserve all attributes)
-::    -r, --recursive       recurse into directories
-::    -v, --verbose         show each transferred file name
-::    -z, --compress        compress data during transfer (useful on slow links)
-::    -n, --dry-run         show what would be transferred without doing it
-::    -P                    shorthand for --partial --progress (resume + show progress)
-::    -h, --human-readable  output file sizes in human-readable format (KB, MB)
-::        --stats           print transfer statistics at the end
-::
-::  File selection:
-::        --delete          delete remote files not present in source (mirror mode)
-::        --exclude=PAT     exclude files matching pattern  e.g. --exclude='*.log'
-::        --include=PAT     force-include files (overrides --exclude)
-::        --filter=RULE     general filter rule  e.g. --filter=':- .gitignore'
-::        --ignore-existing skip files that already exist on the remote
-::        --update          skip files that are newer on the remote
-::        --checksum        compare by checksum instead of size+timestamp
-::
-::  Transfer:
-::    -e CMD                remote shell  e.g. -e "ssh -i ~/.ssh/key"
-::        --bwlimit=KBPS    limit bandwidth  e.g. --bwlimit=5000 for ~5 Mbit/s
-::        --partial         keep partially transferred files (allows resume)
-::        --progress        show per-file transfer progress
-::
-::  Backup:
-::        --backup          make backups of changed/deleted files
-::        --backup-dir=DIR  store backups in DIR on remote
-::        --suffix=.bak     suffix for backup files (default: ~)
-::
-::  rsync examples (set RSYNC_FLAGS / RSYNC_EXCL variables above to apply):
-::    RSYNC_FLAGS=-avzn                                 dry run (show without copying)
-::    RSYNC_FLAGS=-avz --delete                         mirror (remove extra remote files)
-::    RSYNC_FLAGS=-avzP                                 show progress + allow resume
-::    RSYNC_FLAGS=-avz --bwlimit=5000                   limit to ~5 Mbit/s
-::    RSYNC_EXCL=--exclude='*.log'                      exclude log files
-::    RSYNC_EXCL=--exclude=.env --exclude='*.log'       exclude multiple patterns
-::
-:: =============================================================
-::  scp reference:
-::
-::    -C          compress during transfer
-::    -p          preserve timestamps and permissions
-::    -l KBPS     limit bandwidth in Kbit/s  e.g. -l 5000
-::    -P PORT     remote port (default: 22)
-::    -q          quiet mode (suppress progress)
-::    -o OPT      pass SSH option  e.g. -o ConnectTimeout=10
-::
-::  scp examples (set SCP_OPTS variable above to apply):
-::    SCP_OPTS=-C             compress during transfer
-::    SCP_OPTS=-p             preserve timestamps and permissions
-::    SCP_OPTS=-C -p          compress and preserve timestamps
-::    SCP_OPTS=-l 5000        limit bandwidth to ~5 Mbit/s
-::    SCP_OPTS=-P 2222        use non-default SSH port
+REM  rsync reference (https://linux.die.net/man/1/rsync):
+REM  Mode flags:
+REM    -a, --archive         archive mode = -rlptgoD (recursive, preserve all attributes)
+REM    -r, --recursive       recurse into directories
+REM    -v, --verbose         show each transferred file name
+REM    -z, --compress        compress data during transfer (useful on slow links)
+REM    -n, --dry-run         show what would be transferred without doing it
+REM    -P                    shorthand for --partial --progress (resume + show progress)
+REM    -h, --human-readable  output file sizes in human-readable format (KB, MB)
+REM        --stats           print transfer statistics at the end
+REM  File selection:
+REM        --delete          delete remote files not present in source (mirror mode)
+REM        --exclude=PAT     exclude files matching pattern  e.g. --exclude='*.log'
+REM        --include=PAT     force-include files (overrides --exclude)
+REM        --filter=RULE     general filter rule  e.g. --filter=':- .gitignore'
+REM        --ignore-existing skip files that already exist on the remote
+REM        --update          skip files that are newer on the remote
+REM        --checksum        compare by checksum instead of size+timestamp
+REM  Transfer:
+REM    -e CMD                remote shell  e.g. -e "ssh -i ~/.ssh/key"
+REM        --bwlimit=KBPS    limit bandwidth  e.g. --bwlimit=5000 for ~5 Mbit/s
+REM        --partial         keep partially transferred files (allows resume)
+REM        --progress        show per-file transfer progress
+REM  Backup:
+REM        --backup          make backups of changed/deleted files
+REM        --backup-dir=DIR  store backups in DIR on remote
+REM        --suffix=.bak     suffix for backup files (default: ~)
+REM  rsync examples (set RSYNC_FLAGS / RSYNC_EXCL variables above to apply):
+REM    RSYNC_FLAGS=-avzn                                 dry run (show without copying)
+REM    RSYNC_FLAGS=-avz --delete                         mirror (remove extra remote files)
+REM    RSYNC_FLAGS=-avzP                                 show progress + allow resume
+REM    RSYNC_FLAGS=-avz --bwlimit=5000                   limit to ~5 Mbit/s
+REM    RSYNC_EXCL=--exclude='*.log'                      exclude log files
+REM    RSYNC_EXCL=--exclude=.env --exclude='*.log'       exclude multiple patterns
+REM =============================================================
+REM  scp reference:
+REM    -C          compress during transfer
+REM    -p          preserve timestamps and permissions
+REM    -l KBPS     limit bandwidth in Kbit/s  e.g. -l 5000
+REM    -P PORT     remote port (default: 22)
+REM    -q          quiet mode (suppress progress)
+REM    -o OPT      pass SSH option  e.g. -o ConnectTimeout=10
+REM  scp examples (set SCP_OPTS variable above to apply):
+REM    SCP_OPTS=-C             compress during transfer
+REM    SCP_OPTS=-p             preserve timestamps and permissions
+REM    SCP_OPTS=-C -p          compress and preserve timestamps
+REM    SCP_OPTS=-l 5000        limit bandwidth to ~5 Mbit/s
+REM    SCP_OPTS=-P 2222        use non-default SSH port

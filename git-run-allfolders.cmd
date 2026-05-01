@@ -1,32 +1,26 @@
 @echo off
-:: git-run-allfolders.cmd — Runs a Git command across all matching subfolders.
-::
-:: Recursively scans directories for a marker folder (default: .git) and runs
-:: a command in each matching location. Use "update" as a shortcut for git-update.cmd.
-:: Without arguments, prints git status -s -b -v for every repository found.
-::
-:: Dependencies:
-::   git            - https://git-scm.com/downloads
-::                    Windows: winget install Git.Git
-::   git-update.cmd - sibling script, only needed when run_command is "update"
-::
-:: Usage:
-::   git-run-allfolders.cmd [run_command] [search_path] [search_folder]
-::
-:: Parameters:
-::   run_command   : Optional. Command template. Use %%path_to_git_folder%% as placeholder.
-::                   Shortcut: "update" expands to git-update.cmd %%path_to_git_folder%%
-::                   Default:  git -C %%path_to_git_folder%% status -s -b -v
-::   search_path   : Optional. Root folder to scan. Defaults to current directory.
-::   search_folder : Optional. Marker folder to detect. Defaults to .git.
-::
-:: Functions:
-::   search_folders : Recursively walks directories looking for search_folder.
-::
-:: Examples:
-::   git-run-allfolders.cmd
-::   git-run-allfolders.cmd update C:\work
-::   git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
+REM git-run-allfolders.cmd — Runs a Git command across all matching subfolders.
+REM Recursively scans directories for a marker folder (default: .git) and runs
+REM a command in each matching location. Use "update" as a shortcut for git-update.cmd.
+REM Without arguments, prints git status -s -b -v for every repository found.
+REM Dependencies:
+REM   git            - https://git-scm.com/downloads
+REM                    Windows: winget install Git.Git
+REM   git-update.cmd - sibling script, only needed when run_command is "update"
+REM Usage:
+REM   git-run-allfolders.cmd [run_command] [search_path] [search_folder]
+REM Parameters:
+REM   run_command   : Optional. Command template. Use %%path_to_git_folder%% as placeholder.
+REM                   Shortcut: "update" expands to git-update.cmd %%path_to_git_folder%%
+REM                   Default:  git -C %%path_to_git_folder%% status -s -b -v
+REM   search_path   : Optional. Root folder to scan. Defaults to current directory.
+REM   search_folder : Optional. Marker folder to detect. Defaults to .git.
+REM Functions:
+REM   search_folders : Recursively walks directories looking for search_folder.
+REM Examples:
+REM   git-run-allfolders.cmd
+REM   git-run-allfolders.cmd update C:\work
+REM   git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
 
 
 setlocal EnableDelayedExpansion
@@ -56,12 +50,12 @@ call :search_folders "%search_path%"
 
 echo.
 echo Search completed.
-:: pause
+REM pause
 exit /b
 
 :search_folders
 set "current_path=%~1"
-:: echo Searching !current_path!\!search_folder!
+REM echo Searching !current_path!\!search_folder!
 
 if exist "!current_path!\!search_folder!" (
     echo.
