@@ -1,18 +1,14 @@
 @echo off
-:: qudo-run-ui.cmd — Starts Qodo in UI mode.
-::
-:: Runs: start qodo --ui
-::
-:: Dependencies:
-::   Node.js - https://nodejs.org/
-::             Windows: winget install OpenJS.NodeJS
-::   Qodo    - npm install -g @qodo/command
-::             Login: qodo login
-::             Docs: https://docs.qodo.ai/qodo-documentation/qodo-command/getting-started/setup-and-quickstart
-::
-:: Usage:
-::   qudo-run-ui.cmd
-::
-:: Examples:
-::   qudo-run-ui.cmd
+REM qudo-run-ui.cmd — Starts Qodo in UI mode.
+REM Runs: start qodo --ui
+REM Dependencies:
+REM   Node.js - https://nodejs.org/
+REM             Windows: winget install OpenJS.NodeJS
+REM   Qodo    - npm install -g @qodo/command
+REM             Login: qodo login
+REM             Docs: https://docs.qodo.ai/qodo-documentation/qodo-command/getting-started/setup-and-quickstart
+REM Usage:
+REM   qudo-run-ui.cmd
+REM Examples:
+REM   qudo-run-ui.cmd
 start qodo --ui

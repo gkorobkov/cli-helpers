@@ -1,45 +1,40 @@
 @echo off
 setlocal
 
-::====================================================================
-:: file-access.cmd — manage file access permissions
-::
-:: Usage:
-::   file-access.cmd <file>                       — show current permissions
-::   file-access.cmd <file> --grant <perms>        — grant permissions
-::   file-access.cmd <file> --remove <user>        — remove permissions for user
-::   file-access.cmd <file> --fix-ssh-access       — fix SSH key permissions
-::
-:: Parameters:
-::   <file>   — path to the file (e.g. %USERPROFILE%\.ssh\id_rsa)
-::   <perms>  — icacls permission mask:
-::                F  — Full access
-::                M  — Modify
-::                RX — Read and execute
-::                R  — Read only
-::              Applied to current user, SYSTEM, Administrators;
-::              inheritance is removed.
-::   <user>   — account name to remove (e.g. "BUILTIN\Users", "Everyone")
-::
-:: --fix-ssh-access removes inheritance, strips BUILTIN\Users, Everyone, and
-::                 NT AUTHORITY\Authenticated Users, then grants Full access
-::                 to current user, SYSTEM, and Administrators.
-::
-:: SSH "bad permissions" fix:
-::   If you see: Bad permissions. Try removing permissions for user:
-::               BUILTIN\Users (S-1-5-32-545) on file ...
-::   Run:
-::     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --fix-ssh-access
-::   Or step by step:
-::     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --remove "BUILTIN\Users"
-::     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --grant F
-::
-:: Examples:
-::   file-access.cmd %USERPROFILE%\.ssh\id_rsa
-::   file-access.cmd %USERPROFILE%\.ssh\id_rsa --fix-ssh-access
-::   file-access.cmd %USERPROFILE%\.ssh\id_rsa --grant F
-::   file-access.cmd %USERPROFILE%\.ssh\id_rsa --remove "BUILTIN\Users"
-::====================================================================
+REM ====================================================================
+REM file-access.cmd — manage file access permissions
+REM Usage:
+REM   file-access.cmd <file>                       — show current permissions
+REM   file-access.cmd <file> --grant <perms>        — grant permissions
+REM   file-access.cmd <file> --remove <user>        — remove permissions for user
+REM   file-access.cmd <file> --fix-ssh-access       — fix SSH key permissions
+REM Parameters:
+REM   <file>   — path to the file (e.g. %USERPROFILE%\.ssh\id_rsa)
+REM   <perms>  — icacls permission mask:
+REM                F  — Full access
+REM                M  — Modify
+REM                RX — Read and execute
+REM                R  — Read only
+REM              Applied to current user, SYSTEM, Administrators;
+REM              inheritance is removed.
+REM   <user>   — account name to remove (e.g. "BUILTIN\Users", "Everyone")
+REM --fix-ssh-access removes inheritance, strips BUILTIN\Users, Everyone, and
+REM                 NT AUTHORITY\Authenticated Users, then grants Full access
+REM                 to current user, SYSTEM, and Administrators.
+REM SSH "bad permissions" fix:
+REM   If you see: Bad permissions. Try removing permissions for user:
+REM               BUILTIN\Users (S-1-5-32-545) on file ...
+REM   Run:
+REM     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --fix-ssh-access
+REM   Or step by step:
+REM     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --remove "BUILTIN\Users"
+REM     file-access.cmd %USERPROFILE%\.ssh\id_rsa_2 --grant F
+REM Examples:
+REM   file-access.cmd %USERPROFILE%\.ssh\id_rsa
+REM   file-access.cmd %USERPROFILE%\.ssh\id_rsa --fix-ssh-access
+REM   file-access.cmd %USERPROFILE%\.ssh\id_rsa --grant F
+REM   file-access.cmd %USERPROFILE%\.ssh\id_rsa --remove "BUILTIN\Users"
+REM ====================================================================
 
 if "%~1"=="" goto :usage
 
@@ -58,14 +53,14 @@ if /i "%~2"=="--remove"         goto :do_remove
 echo Error: unknown option: %~2
 goto :usage
 
-:: ------------------------------------------------------------------
+REM ------------------------------------------------------------------
 :show_perms
 echo Current permissions for: %KEY_FILE%
 echo.
 icacls "%KEY_FILE%"
 goto :eof
 
-:: ------------------------------------------------------------------
+REM ------------------------------------------------------------------
 :do_fix
 echo Applying SSH key permissions fix for: %KEY_FILE%
 icacls "%KEY_FILE%" /inheritance:r
@@ -82,7 +77,7 @@ if %errorlevel% equ 0 (
 )
 goto :eof
 
-:: ------------------------------------------------------------------
+REM ------------------------------------------------------------------
 :do_grant
 if "%~3"=="" (
     echo Error: --grant requires a permission mask ^(F, M, RX, R^).
@@ -100,7 +95,7 @@ if %errorlevel% equ 0 (
 )
 goto :eof
 
-:: ------------------------------------------------------------------
+REM ------------------------------------------------------------------
 :do_remove
 if "%~3"=="" (
     echo Error: --remove requires a user name ^(e.g. "BUILTIN\Users"^).
@@ -117,7 +112,7 @@ if %errorlevel% equ 0 (
 )
 goto :eof
 
-:: ------------------------------------------------------------------
+REM ------------------------------------------------------------------
 :usage
 echo.
 echo  Usage:

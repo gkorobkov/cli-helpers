@@ -1,25 +1,20 @@
 @ECHO OFF
-:: git-merge.cmd — Merges one Git branch into another and pushes the result.
-::
-:: Updates both branches with git-update.cmd, checks out the destination branch,
-:: merges the source with --allow-unrelated-histories, then pushes and prints git status.
-::
-:: Dependencies:
-::   git            - https://git-scm.com/downloads
-::                    Windows: winget install Git.Git
-::   git-update.cmd - sibling script, must be in the same folder or PATH
-::
-:: Usage:
-::   git-merge.cmd <from_branch> <to_branch> [sub_path]
-::
-:: Parameters:
-::   from_branch : Required. Source branch to merge from.
-::   to_branch   : Required. Destination branch to merge into.
-::   sub_path    : Optional. Repository folder. Defaults to current directory.
-::
-:: Examples:
-::   git-merge.cmd feature/main main
-::   git-merge.cmd feature/main main C:\work\my-repo
+REM git-merge.cmd — Merges one Git branch into another and pushes the result.
+REM Updates both branches with git-update.cmd, checks out the destination branch,
+REM merges the source with --allow-unrelated-histories, then pushes and prints git status.
+REM Dependencies:
+REM   git            - https://git-scm.com/downloads
+REM                    Windows: winget install Git.Git
+REM   git-update.cmd - sibling script, must be in the same folder or PATH
+REM Usage:
+REM   git-merge.cmd <from_branch> <to_branch> [sub_path]
+REM Parameters:
+REM   from_branch : Required. Source branch to merge from.
+REM   to_branch   : Required. Destination branch to merge into.
+REM   sub_path    : Optional. Repository folder. Defaults to current directory.
+REM Examples:
+REM   git-merge.cmd feature/main main
+REM   git-merge.cmd feature/main main C:\work\my-repo
 
 set from_branch_name=%1
 if not defined from_branch_name goto noArgs
@@ -45,8 +40,8 @@ pushd . && (
 call git-update.cmd %sub_path% %from_branch_name% ) && (
 call git-update.cmd %sub_path% %to_branch_name% ) && (
 
-:: call git commit -a -m "fix CRLF"  ) && (
-:: call git push  ) && (
+REM call git commit -a -m "fix CRLF"  ) && (
+REM call git push  ) && (
 
 echo.       
 echo ********************************************************************************
@@ -56,11 +51,11 @@ title  MERGE from branch: '%from_branch_name%', to branch: '%to_branch_name%'. F
 
 call git merge --allow-unrelated-histories  %from_branch_name%  ) && (
 
-:: echo ***************
-:: echo *  git commit *
-:: echo ***************
-:: call git commit  ) && (
-:: pause
+REM echo ***************
+REM echo *  git commit *
+REM echo ***************
+REM call git commit  ) && (
+REM pause
 
 echo.
 echo ***************

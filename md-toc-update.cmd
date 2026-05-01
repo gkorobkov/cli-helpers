@@ -1,20 +1,15 @@
 @echo off
 REM md-toc-update.cmd - Creates or updates Table of Contents in Markdown files.
-REM
 REM Finds a heading named "??????????", "TOC", "Table of contents", or "Contents"
 REM and replaces the block below it (until the next heading) with generated TOC links.
 REM If no TOC marker heading is found, inserts "# Table of contents" at the top.
-REM
 REM Without file arguments: scans for *.md files, shows TOC status per file,
 REM and prints ready-to-run example commands - nothing is written.
-REM
 REM Dependencies:
 REM   PowerShell        - built-in on Windows 10/11 (no install needed)
 REM   md-toc-update.ps1 - sibling script in the same folder
-REM
 REM Usage:
 REM   md-toc-update.cmd [FILE ...] [--files FILE [FILE ...]] [--dry-run] [--hN] [--help]
-REM
 REM Examples:
 REM   md-toc-update.cmd                              List MD files and show example commands
 REM   md-toc-update.cmd setup.md                    Update TOC in a single file
