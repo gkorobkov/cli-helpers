@@ -3,13 +3,13 @@ setlocal enabledelayedexpansion
 REM =============================================================
 REM ssh-copy-remote.cmd - copy project to remote server via SSH/scp
 REM  Config: *.remote.ini or *.local.ini in current folder (not in git)
-REM  Requires: ssh, scp, rsync
+REM  Requires: ssh, scp
 REM  Dependencies:
 REM    ssh, scp  - OpenSSH Client (built-in on Windows 10/11)
 REM                If missing: Settings > Apps > Optional features > OpenSSH Client
 REM                Or: winget install Microsoft.OpenSSH.Beta
 REM                Docs: https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
-REM    rsync     - required only for folder copy (excludes .env and .gitignore files)
+REM    rsync     - optional for folder copy (improves sync and supports excludes)
 REM                scoop  : scoop install rsync        (https://scoop.sh)
 REM                choco  : choco install rsync         (https://chocolatey.org)
 REM                direct : download cwRsync from https://itefix.net/cwrsync (free version)
@@ -104,69 +104,164 @@ REM =============================================================
 :parse_args
 if "%~1"=="" goto :args_done
 set "ARG=%~1"
-REM normalize accidental surrounding quotes/spaces (PowerShell may rewrite args)
-for /f "tokens=* delims= " %%A in ("%ARG%") do set "ARG=%%~A"
-if "%ARG:~-1%"=="=" set "ARG=%ARG:~0,-1%"
-for /f "tokens=1 delims= " %%A in ("%ARG%") do set "ARG=%%A"
+set "ARG2=%~2"
+REM Strip accidental surrounding quotes from the value token.
+if defined ARG2 if "!ARG2:~0,1!"=="^"" if "!ARG2:~-1!"=="^"" set "ARG2=!ARG2:~1,-1!"
 REM Set SSH_COPY_REMOTE_DEBUG=1 to see per-arg parsing
-if defined SSH_COPY_REMOTE_DEBUG echo DBG ARG_bang=[!ARG!] ARG_pct=[%ARG%] ARG2=[%~2]
+if defined SSH_COPY_REMOTE_DEBUG echo DBG ARG=[!ARG!] ARG2=[!ARG2!]
 
-REM --- Support "--key value" form in addition to "--key=value" ---
-if /i "%ARG%"=="--config"      ( set "CFG=%~2"           & if "!CFG:~0,1!"=="=" set "CFG=!CFG:~1!"                       & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--profile"     ( set "PROFILE=%~2"       & if "!PROFILE:~0,1!"=="=" set "PROFILE=!PROFILE:~1!"           & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--user"        ( set "RUSER=%~2"         & if "!RUSER:~0,1!"=="=" set "RUSER=!RUSER:~1!"                 & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--server"      ( set "SERVER=%~2"        & if "!SERVER:~0,1!"=="=" set "SERVER=!SERVER:~1!"              & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--ssh_key"     ( set "SSH_KEY=%~2"       & if "!SSH_KEY:~0,1!"=="=" set "SSH_KEY=!SSH_KEY:~1!"           & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--local_path"  ( set "LOCAL_PATH=%~2"    & if "!LOCAL_PATH:~0,1!"=="=" set "LOCAL_PATH=!LOCAL_PATH:~1!"  & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--remote_path" ( set "REMOTE_PATH=%~2"   & if "!REMOTE_PATH:~0,1!"=="=" set "REMOTE_PATH=!REMOTE_PATH:~1!" & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--deploy_hint" ( set "DEPLOY_HINT=%~2"   & if "!DEPLOY_HINT:~0,1!"=="=" set "DEPLOY_HINT=!DEPLOY_HINT:~1!" & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--from"        ( set "_PENDING_FROM=%~2" & if "!_PENDING_FROM:~0,1!"=="=" set "_PENDING_FROM=!_PENDING_FROM:~1!" & shift & shift & goto :parse_args )
-if /i "%ARG%"=="--to" (
-    if not defined _PENDING_FROM ( echo. & echo  [ERROR]  --to without preceding --from & echo. & exit /b 1 )
-    set "PAIR_!PAIR_COUNT!_LOCAL=!_PENDING_FROM!"
-    set "_TMP_TO=%~2"
-    if "!_TMP_TO:~0,1!"=="=" set "_TMP_TO=!_TMP_TO:~1!"
-    set "PAIR_!PAIR_COUNT!_REMOTE=!_TMP_TO!"
-    set /a PAIR_COUNT+=1
-    set "_PENDING_FROM="
-    shift & shift & goto :parse_args
-)
-
-if /i "!ARG:~0,9!"=="--config="       ( set "CFG=!ARG:~9!"           & shift & goto :parse_args )
-if /i "!ARG:~0,10!"=="--profile="     ( set "PROFILE=!ARG:~10!"       & shift & goto :parse_args )
-if /i "!ARG:~0,7!"=="--user="         ( set "RUSER=!ARG:~7!"          & shift & goto :parse_args )
-if /i "!ARG:~0,9!"=="--server="       ( set "SERVER=!ARG:~9!"         & shift & goto :parse_args )
-if /i "!ARG:~0,10!"=="--ssh_key="     ( set "SSH_KEY=!ARG:~10!"       & shift & goto :parse_args )
-if /i "!ARG:~0,13!"=="--local_path="  ( set "LOCAL_PATH=!ARG:~13!"    & shift & goto :parse_args )
-if /i "!ARG:~0,14!"=="--remote_path=" ( set "REMOTE_PATH=!ARG:~14!"   & shift & goto :parse_args )
-if /i "!ARG:~0,14!"=="--deploy_hint=" ( set "DEPLOY_HINT=!ARG:~14!"   & shift & goto :parse_args )
-if /i "!ARG:~0,7!"=="--from="         ( set "_PENDING_FROM=!ARG:~7!"  & shift & goto :parse_args )
-if /i "!ARG:~0,5!"=="--to=" (
-    if not defined _PENDING_FROM (
-        echo.
-        echo  [ERROR]  --to= without preceding --from=
-        echo.
-        exit /b 1
-    )
-    set "PAIR_!PAIR_COUNT!_LOCAL=!_PENDING_FROM!"
-    set "PAIR_!PAIR_COUNT!_REMOTE=%ARG:~5%"
-    set /a PAIR_COUNT+=1
-    set "_PENDING_FROM="
-    shift & goto :parse_args
-)
-if /i "!ARG!"=="--copy"               ( set "CMD=copy"                & shift & goto :parse_args )
-if /i "!ARG!"=="--check"              ( set "CMD=check"               & shift & goto :parse_args )
-if /i "!ARG!"=="--list"               ( set "CMD=list"                & shift & goto :parse_args )
+if /i "%ARG%"=="--config"       goto :arg_config
+if /i "%ARG%"=="--profile"      goto :arg_profile
+if /i "%ARG%"=="--user"         goto :arg_user
+if /i "%ARG%"=="--server"       goto :arg_server
+if /i "%ARG%"=="--ssh_key"      goto :arg_ssh_key
+if /i "%ARG%"=="--local_path"   goto :arg_local_path
+if /i "%ARG%"=="--remote_path"  goto :arg_remote_path
+if /i "%ARG%"=="--deploy_hint"  goto :arg_deploy_hint
+if /i "%ARG%"=="--from"         goto :arg_from
+if /i "%ARG%"=="--to"           goto :arg_to
+if /i "%ARG%"=="--copy"         ( set "CMD=copy" & shift & goto :parse_args )
+if /i "%ARG%"=="--check"        ( set "CMD=check" & shift & goto :parse_args )
+if /i "%ARG%"=="--list"         ( set "CMD=list" & shift & goto :parse_args )
 REM --- Legacy "/copy" form ---
-if /i "!ARG!"=="/copy"                ( set "CMD=copy"                & shift & goto :parse_args )
-if /i "!ARG!"=="/check"               ( set "CMD=check"               & shift & goto :parse_args )
-if /i "!ARG!"=="/list"                ( set "CMD=list"                & shift & goto :parse_args )
+if /i "%ARG%"=="/copy"          ( set "CMD=copy" & shift & goto :parse_args )
+if /i "%ARG%"=="/check"         ( set "CMD=check" & shift & goto :parse_args )
+if /i "%ARG%"=="/list"          ( set "CMD=list" & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
-echo  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_path=  --remote_path=  --deploy_hint=  --from=  --to=  --check  --copy  --list
+echo  Valid:   --config  --profile  --user  --server  --ssh_key  --local_path  --remote_path  --deploy_hint  --from  --to  --check  --copy  --list
 echo.
 exit /b 1
+
+:arg_config
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --config requires a value
+    echo.
+    exit /b 1
+)
+set "CFG=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_profile
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --profile requires a value
+    echo.
+    exit /b 1
+)
+set "PROFILE=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_user
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --user requires a value
+    echo.
+    exit /b 1
+)
+set "RUSER=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_server
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --server requires a value
+    echo.
+    exit /b 1
+)
+set "SERVER=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_ssh_key
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --ssh_key requires a value
+    echo.
+    exit /b 1
+)
+set "SSH_KEY=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_local_path
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --local_path requires a value
+    echo.
+    exit /b 1
+)
+set "LOCAL_PATH=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_remote_path
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --remote_path requires a value
+    echo.
+    exit /b 1
+)
+set "REMOTE_PATH=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_deploy_hint
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --deploy_hint requires a value
+    echo.
+    exit /b 1
+)
+set "DEPLOY_HINT=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_from
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --from requires a value
+    echo.
+    exit /b 1
+)
+set "_PENDING_FROM=%ARG2%"
+shift
+shift
+goto :parse_args
+
+:arg_to
+if "%ARG2%"=="" (
+    echo.
+    echo  [ERROR]  --to requires a value
+    echo.
+    exit /b 1
+)
+if not defined _PENDING_FROM (
+    echo.
+    echo  [ERROR]  --to without preceding --from
+    echo.
+    exit /b 1
+)
+set "PAIR_!PAIR_COUNT!_LOCAL=!_PENDING_FROM!"
+set "PAIR_!PAIR_COUNT!_REMOTE=%ARG2%"
+set /a PAIR_COUNT+=1
+set "_PENDING_FROM="
+shift
+shift
+goto :parse_args
 
 :args_done
 if defined _PENDING_FROM (
@@ -342,6 +437,7 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
     set "_LOCAL=!PAIR_%%i_LOCAL!"
     set "_REMOTE=!PAIR_%%i_REMOTE!"
     set "PAIR_%%i_IS_DIR=0"
+    set "PAIR_%%i_COPY_METHOD="
     set "PAIR_%%i_REMOTE_MISSING=0"
     set "PAIR_%%i_REMOTE_NOPERM=0"
 
@@ -353,9 +449,10 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         set "PAIR_%%i_IS_DIR=1"
         where rsync >nul 2>&1
         if !ERRORLEVEL! neq 0 (
-            echo  [ERROR]  rsync not found - required for folder copy ^(excludes .env and .gitignore files^)
-            echo  Install: scoop install rsync  or  choco install rsync  ^(see script header^)
-            set "ALL_OK=0"
+            echo  [WARN]   rsync not found - folder copy will use scp ^(no .env/.gitignore exclusions^)
+            set "PAIR_%%i_COPY_METHOD=scp"
+        ) else (
+            set "PAIR_%%i_COPY_METHOD=rsync"
         )
     ) else if exist "!_LOCAL!" (
         echo  [OK]     Local file found
@@ -433,11 +530,17 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
             echo  [OK]     Permissions fixed.
             echo.
         )
-        set "RSYNC_E=ssh"
-        if defined SSH_KEY set "RSYNC_E=ssh -i !SSH_KEY!"
-        echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
-        echo.
-        rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+        if /i "!PAIR_%%i_COPY_METHOD!"=="scp" (
+            echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." %RUSER%@%SERVER%:!_REMOTE!/
+            echo.
+            scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." %RUSER%@%SERVER%:!_REMOTE!/
+        ) else (
+            set "RSYNC_E=ssh"
+            if defined SSH_KEY set "RSYNC_E=ssh -i !SSH_KEY!"
+            echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+            echo.
+            rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+        )
     ) else (
         rem --- File mode ---
         if "!PAIR_%%i_REMOTE_MISSING!"=="1" (

@@ -7,7 +7,7 @@
 #  Dependencies:
 #    ssh, scp  - OpenSSH (standard on Linux/macOS; on some distros: sudo apt install openssh-client)
 #
-#    rsync     - required only for folder sync (excludes .env and .gitignore files)
+#    rsync     - optional for folder sync (improves sync and supports excludes)
 #                sudo apt install rsync  /  brew install rsync  /  scoop install rsync
 #
 #  Transfer options (edit defaults below variable declarations to customize):
@@ -345,6 +345,7 @@ for i in "${!PAIR_LOCALS[@]}"; do
     _local="${PAIR_LOCALS[$i]}"
     _remote="${PAIR_REMOTES[$i]}"
     PAIR_IS_DIR[$i]=0
+    PAIR_COPY_METHOD[$i]=""
     PAIR_REMOTE_MISSING[$i]=0
     PAIR_REMOTE_NOPERM[$i]=0
 
@@ -355,9 +356,10 @@ for i in "${!PAIR_LOCALS[@]}"; do
         echo "  [OK]     Local folder found"
         PAIR_IS_DIR[$i]=1
         if ! command -v rsync &>/dev/null; then
-            echo "  [ERROR]  rsync not found - required for folder copy (excludes .env and .gitignore files)"
-            echo "  Install: sudo apt install rsync"
-            ALL_OK=0
+            echo "  [WARN]   rsync not found - folder copy will use scp (no .env/.gitignore exclusions)"
+            PAIR_COPY_METHOD[$i]="scp"
+        else
+            PAIR_COPY_METHOD[$i]="rsync"
         fi
     elif [[ -f "$_local" ]]; then
         echo "  [OK]     Local file found"
@@ -444,11 +446,17 @@ for i in "${!PAIR_LOCALS[@]}"; do
             echo "  [OK]     Permissions fixed."
             echo ""
         fi
-        _rsync_e="ssh"
-        [[ -n "$SSH_KEY" ]] && _rsync_e="ssh -i $SSH_KEY"
-        echo "  Command: rsync ${RSYNC_FLAGS[*]} ${RSYNC_EXCL[*]} --filter=':- .gitignore' -e \"$_rsync_e\" \"$_local/\" $RUSER@$SERVER:$_remote/"
-        echo ""
-        rsync "${RSYNC_FLAGS[@]}" "${RSYNC_EXCL[@]}" --filter=':- .gitignore' -e "$_rsync_e" "$_local/" "$RUSER@$SERVER:$_remote/"
+        if [[ "${PAIR_COPY_METHOD[$i]}" == "scp" ]]; then
+            echo "  Command: scp ${SCP_OPTS[*]} ${SSH_KEY_ARG[*]} -r \"$_local/.\" $RUSER@$SERVER:$_remote/"
+            echo ""
+            scp "${SCP_OPTS[@]}" "${SSH_KEY_ARG[@]}" -r "$_local/." "$RUSER@$SERVER:$_remote/"
+        else
+            _rsync_e="ssh"
+            [[ -n "$SSH_KEY" ]] && _rsync_e="ssh -i $SSH_KEY"
+            echo "  Command: rsync ${RSYNC_FLAGS[*]} ${RSYNC_EXCL[*]} --filter=':- .gitignore' -e \"$_rsync_e\" \"$_local/\" $RUSER@$SERVER:$_remote/"
+            echo ""
+            rsync "${RSYNC_FLAGS[@]}" "${RSYNC_EXCL[@]}" --filter=':- .gitignore' -e "$_rsync_e" "$_local/" "$RUSER@$SERVER:$_remote/"
+        fi
     else
         if [[ "$_remote_missing" -eq 1 ]]; then
             echo "  Creating remote parent folder for: $_remote"
