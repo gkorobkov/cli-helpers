@@ -233,6 +233,7 @@ Default and destructive behavior:
 - Check mode is the default and does not copy files.
 - `--copy` explicitly enables remote directory creation, permission repair, and file transfer. Existing destination files may be overwritten by `scp`, `rsync`, or the streamed `tar` fallback.
 - Folder copies always exclude `.env`. They also apply the source folder's root `.gitignore`. A file passed directly as `--from` is copied explicitly even when it is named `.env` or matches `.gitignore`.
+- Folder transfers print each copied path. The `tar` fallback also prints directory entries as they are extracted.
 
 Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
 Without `--copy` the script performs a connectivity check only.

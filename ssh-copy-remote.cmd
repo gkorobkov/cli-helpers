@@ -588,13 +588,13 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         if /i "!PAIR_%%i_COPY_METHOD!"=="tar" (
             pushd "!_LOCAL!"
             if "!PAIR_%%i_HAS_GITIGNORE!"=="1" (
-                echo  Command: tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                echo  Command: tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
                 echo.
-                tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
             ) else (
-                echo  Command: tar --exclude=.env --exclude=*/.env -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                echo  Command: tar --exclude=.env --exclude=*/.env -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
                 echo.
-                tar --exclude=.env --exclude=*/.env -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                tar --exclude=.env --exclude=*/.env -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
             )
             popd
         ) else (
