@@ -10,6 +10,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
 - [Command Line Utilities](#command-line-utilities)
   - [Checks, lists, adds, or removes the current directory in `PATH`.](#checks-lists-adds-or-removes-the-current-directory-in-path)
   - [Shows, grants, or removes Windows file access permissions.](#shows-grants-or-removes-windows-file-access-permissions)
+  - [Finds processes referencing a file or directory and optionally terminates them.](#finds-processes-referencing-a-file-or-directory-and-optionally-terminates-them)
 - [SSH / Remote Utilities](#ssh-remote-utilities)
   - [Copies a project folder to a remote server via SSH/scp.](#copies-a-project-folder-to-a-remote-server-via-sshscp)
 - [Git Utilities](#git-utilities)
@@ -119,6 +120,88 @@ file-access.cmd %USERPROFILE%\.ssh\id_rsa --grant F
 file-access.cmd %USERPROFILE%\.ssh\id_rsa --remove "BUILTIN\Users"
 ```
 
+
+
+## Finds processes referencing a file or directory and optionally terminates them.
+
+Files: `locks.cmd`, `locks.ps1`, `locks.sh`
+
+Finds processes whose command lines reference the specified file or directory.
+Use it to identify development processes such as Node.js servers, watchers, build tools, or other commands that were started with a project path in their command line.
+
+Without a path argument, the current working directory is checked. The output includes the process ID (PID), parent process ID (PPID), process name, parent process name, and full command line.
+
+With `--kill`, the helper displays the matching processes first and then lets you terminate all of them, one PID, or a comma-separated list of selected PIDs.
+
+On Windows, `locks.cmd` is the CMD wrapper and `locks.ps1` contains the implementation. `locks.ps1` can also be run directly. On Linux, `locks.sh` reads process information from `/proc`.
+
+General form:
+
+```bat
+:: Windows CMD / BAT
+locks.cmd [path] [--kill] [--help]
+```
+
+```powershell
+# Windows PowerShell
+.\locks.ps1 [path] [--kill] [--help]
+```
+
+```bash
+# Linux / bash
+./locks.sh [path] [--kill] [--help]
+```
+
+Parameters:
+- No arguments: Check the current working directory.
+- `path`: Optional. File or directory to check.
+- `--kill`: Optional. After displaying matching processes, prompt to terminate all processes or selected PIDs.
+- `--help`: Optional. Show usage information.
+
+Kill selection:
+- `y`: Terminate all listed processes.
+- `N` or Enter: Cancel without terminating processes.
+- `PID`: Terminate one listed process.
+- `PID,PID,...`: Terminate selected listed processes.
+
+Examples:
+
+```bat
+:: Windows CMD / BAT — check the current directory
+locks.cmd
+```
+
+```bat
+:: Windows CMD / BAT — check a specific directory
+locks.cmd "C:\Projects\my-app"
+```
+
+```bat
+:: Windows CMD / BAT — check a specific file
+locks.cmd package.json
+```
+
+```bat
+:: Windows CMD / BAT — find matching processes and offer to terminate them
+locks.cmd --kill
+```
+
+```powershell
+# Windows PowerShell — run the implementation directly
+.\locks.ps1 "C:\Projects\my-app" --kill
+```
+
+```bash
+# Linux / bash — check the current directory
+./locks.sh
+```
+
+```bash
+# Linux / bash — check a specific directory and offer to terminate matches
+./locks.sh /home/user/projects/my-app --kill
+```
+
+> **Limitation:** `locks` searches process command lines for the target path. A process can still hold a file or directory handle/file descriptor even when the path does not appear in its command line, so an empty result does not guarantee that the resource is unlocked.
 
 # SSH / Remote Utilities
 
