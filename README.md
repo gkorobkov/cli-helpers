@@ -226,12 +226,13 @@ locks.cmd --kill
 Files: `ssh-copy-remote.cmd`, `ssh-copy-remote.sh`
 
 Dependencies:
-- Windows: OpenSSH Client (`ssh` and `scp`); `rsync` is optional for directory synchronization.
+- Windows: OpenSSH Client (`ssh` and `scp`) and `tar`; `rsync` is optional for directory synchronization. Current Windows 10/11 installations include `tar`.
 - Linux/macOS: Bash, OpenSSH, and `realpath`, `sort`, and `tr`; `rsync` is optional.
 
 Default and destructive behavior:
 - Check mode is the default and does not copy files.
-- `--copy` explicitly enables remote directory creation, permission repair, and file transfer. Existing destination files may be overwritten by `scp` or `rsync`.
+- `--copy` explicitly enables remote directory creation, permission repair, and file transfer. Existing destination files may be overwritten by `scp`, `rsync`, or the streamed `tar` fallback.
+- Folder copies always exclude `.env`. They also apply the source folder's root `.gitignore`. A file passed directly as `--from` is copied explicitly even when it is named `.env` or matches `.gitignore`.
 
 Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
 Without `--copy` the script performs a connectivity check only.
@@ -247,6 +248,11 @@ ssh-copy-remote.cmd [--config=file.ini] [--profile=name] [--check|--copy|--list]
 ```bat
 :: Windows CMD / BAT — inline mode (no config file)
 ssh-copy-remote.cmd --user=name --server=host --local_dir=path --remote_dir=path [--ssh_key=path] [--copy]
+```
+
+```bat
+:: Windows CMD / BAT — repeated local-to-remote pairs
+ssh-copy-remote.cmd --user=name --server=host --from=local-path --to=remote-path [--from=local-path --to=remote-path ...] [--ssh_key=path] [--copy]
 ```
 
 ```bash
@@ -268,6 +274,7 @@ Parameters:
 - `--ssh_key=path`: Optional. Path to SSH private key.
 - `--local_dir=path` / `--local_path=path`: Inline mode. Local path to copy. Both aliases are accepted on Windows and Linux.
 - `--remote_dir=path` / `--remote_path=path`: Inline mode. Remote destination path. Both aliases are accepted on Windows and Linux.
+- `--from=path --to=path`: Inline local-to-remote pair. Repeat the pair to copy multiple files or folders in one run.
 - `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
 - `--check`: Optional. Verify connectivity without copying (default mode).
 - `--copy`: Optional. Run the actual `scp` copy after checks pass.
@@ -275,6 +282,7 @@ Parameters:
 
 Limitations:
 - The remote host must provide a POSIX-compatible shell plus `dirname`, `mkdir`, `chown`, and `sudo` when remote creation or permission repair is needed.
+- The `tar` fallback reads the root `.gitignore` as an exclude-pattern file. Advanced Git rules such as negation (`!pattern`) and `.gitignore` files in nested folders may not behave exactly like Git; install `rsync` when exact recursive Git-style filtering is required.
 - Windows rejects remote paths containing apostrophes because they cannot be represented safely by the CMD implementation.
 
 Config file format (save as `*.remote.ini`, e.g. `copy-remote.remote.ini`; excluded from git):
@@ -320,6 +328,11 @@ ssh-copy-remote.cmd --profile=ai-agent --copy
 ```bat
 :: Windows CMD / BAT — inline mode, no config file
 ssh-copy-remote.cmd --user=me --server=myhost --local_dir=C:\proj --remote_dir=/home/me/proj --copy
+```
+
+```bat
+:: Windows CMD / BAT — check two folder pairs without copying
+ssh-copy-remote.cmd --user=gkuser01 --server=gkorobkov.ru --from=./k3s/ --to=/opt/k3s --from=./Headlamp/ --to=/opt/headlamp
 ```
 
 ```bash
