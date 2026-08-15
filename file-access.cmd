@@ -3,6 +3,10 @@ setlocal
 
 REM ====================================================================
 REM file-access.cmd — manage file access permissions
+REM Dependencies:
+REM   icacls — built-in on supported Windows versions
+REM Destructive behavior:
+REM   --grant, --remove, and --fix-ssh-access change the target file ACL.
 REM Usage:
 REM   file-access.cmd <file>                       — show current permissions
 REM   file-access.cmd <file> --grant <perms>        — grant permissions
@@ -57,19 +61,42 @@ REM ------------------------------------------------------------------
 :show_perms
 echo Current permissions for: %KEY_FILE%
 echo.
+echo [ Running: icacls "%KEY_FILE%" ]
 icacls "%KEY_FILE%"
-goto :eof
+exit /b %errorlevel%
 
 REM ------------------------------------------------------------------
 :do_fix
 echo Applying SSH key permissions fix for: %KEY_FILE%
+echo [ Running: icacls "%KEY_FILE%" /inheritance:r ]
 icacls "%KEY_FILE%" /inheritance:r
-icacls "%KEY_FILE%" --remove "BUILTIN\Users"                    2>nul
-icacls "%KEY_FILE%" --remove "Everyone"                         2>nul
-icacls "%KEY_FILE%" --remove "NT AUTHORITY\Authenticated Users" 2>nul
-icacls "%KEY_FILE%" --grant:r "%USERDOMAIN%\%USERNAME%:F" "SYSTEM:F" "Administrators:F"
+if errorlevel 1 (
+    echo Error: failed to remove inherited permissions.
+    exit /b 1
+)
+echo [ Running: icacls "%KEY_FILE%" /remove "BUILTIN\Users" ]
+icacls "%KEY_FILE%" /remove "BUILTIN\Users"                    2>nul
+if errorlevel 1 (
+    echo Error: failed to remove BUILTIN\Users permissions.
+    exit /b 1
+)
+echo [ Running: icacls "%KEY_FILE%" /remove "Everyone" ]
+icacls "%KEY_FILE%" /remove "Everyone"                         2>nul
+if errorlevel 1 (
+    echo Error: failed to remove Everyone permissions.
+    exit /b 1
+)
+echo [ Running: icacls "%KEY_FILE%" /remove "NT AUTHORITY\Authenticated Users" ]
+icacls "%KEY_FILE%" /remove "NT AUTHORITY\Authenticated Users" 2>nul
+if errorlevel 1 (
+    echo Error: failed to remove Authenticated Users permissions.
+    exit /b 1
+)
+echo [ Running: icacls "%KEY_FILE%" /grant:r "%USERDOMAIN%\%USERNAME%:F" "SYSTEM:F" "Administrators:F" ]
+icacls "%KEY_FILE%" /grant:r "%USERDOMAIN%\%USERNAME%:F" "SYSTEM:F" "Administrators:F"
 if %errorlevel% equ 0 (
     echo Done. Verifying:
+    echo [ Running: icacls "%KEY_FILE%" ]
     icacls "%KEY_FILE%"
 ) else (
     echo Error: failed to apply fix.
@@ -81,12 +108,25 @@ REM ------------------------------------------------------------------
 :do_grant
 if "%~3"=="" (
     echo Error: --grant requires a permission mask ^(F, M, RX, R^).
-    goto :usage
+    exit /b 1
 )
 set "PERMS=%~3"
+if /i "%PERMS%"=="F" goto :grant_valid
+if /i "%PERMS%"=="M" goto :grant_valid
+if /i "%PERMS%"=="RX" goto :grant_valid
+if /i "%PERMS%"=="R" goto :grant_valid
+echo Error: invalid permission mask: %PERMS%
+exit /b 1
+:grant_valid
 echo Granting [%PERMS%] on: %KEY_FILE%
+echo [ Running: icacls "%KEY_FILE%" /inheritance:r ]
 icacls "%KEY_FILE%" /inheritance:r
-icacls "%KEY_FILE%" --grant:r "%USERDOMAIN%\%USERNAME%:%PERMS%" "SYSTEM:%PERMS%" "Administrators:%PERMS%"
+if errorlevel 1 (
+    echo Error: failed to remove inherited permissions.
+    exit /b 1
+)
+echo [ Running: icacls "%KEY_FILE%" /grant:r "%USERDOMAIN%\%USERNAME%:%PERMS%" "SYSTEM:%PERMS%" "Administrators:%PERMS%" ]
+icacls "%KEY_FILE%" /grant:r "%USERDOMAIN%\%USERNAME%:%PERMS%" "SYSTEM:%PERMS%" "Administrators:%PERMS%"
 if %errorlevel% equ 0 (
     echo Permissions granted successfully.
 ) else (
@@ -99,11 +139,12 @@ REM ------------------------------------------------------------------
 :do_remove
 if "%~3"=="" (
     echo Error: --remove requires a user name ^(e.g. "BUILTIN\Users"^).
-    goto :usage
+    exit /b 1
 )
 set "TARGET_USER=%~3"
 echo Removing permissions for [%TARGET_USER%] on: %KEY_FILE%
-icacls "%KEY_FILE%" --remove "%TARGET_USER%"
+echo [ Running: icacls "%KEY_FILE%" /remove "%TARGET_USER%" ]
+icacls "%KEY_FILE%" /remove "%TARGET_USER%"
 if %errorlevel% equ 0 (
     echo Permissions removed successfully.
 ) else (

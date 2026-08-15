@@ -23,120 +23,97 @@ REM   git-update.cmd
 REM   git-update.cmd C:\work\my-repo main
 REM   set fetch_origin=true && git-update.cmd
 
-REM set fetch_origin=true
-REM set checkout_branch=true
+setlocal EnableExtensions
 
-set sub_path=%1
-if not defined sub_path set sub_path=%cd% 
-if not exist %sub_path% goto noFolder
-cd %sub_path%
+set "sub_path=%~1"
+if not defined sub_path set "sub_path=%CD%"
+if not exist "%sub_path%\" goto noFolder
 
-set branch_name=%2
-if defined branch_name goto gitUpdate
-FOR /F "tokens=*" %%a in ('git-branch-name.cmd') do SET branch_name=%%a
+pushd "%sub_path%" || (
+  echo ERROR: Failed to enter repository folder: "%sub_path%"
+  endlocal & exit /b 1
+)
 
-:gitUpdate
+set "branch_name=%~2"
+if not defined branch_name (
+  rem >&2 echo [ Running: call "%~dp0git-branch-name.cmd" ]
+  for /f "usebackq delims=" %%a in (`call "%~dp0git-branch-name.cmd"`) do set "branch_name=%%a"
+)
 
-echo.       
+if not defined branch_name (
+  echo ERROR: Could not determine the current Git branch.
+  goto failed
+)
+
+echo.
 echo ********************************************************************************
 echo * Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
+title Running git UPDATE. Branch: '%branch_name%'. Folder: '%sub_path%'
 
-pushd . && (
-
-:gitStash
-REM echo.
-if "%auto_stash%" equ "true" (
-  echo "Auto stash on %date%_%time%" 
-  rem git -c diff.mnemonicprefix=false -c core.quotepath=false stash save "Auto stash on %date%_%time%"
+if /I "%auto_stash%"=="true" (
+  echo Auto-stash was requested, but the stash operation is not implemented.
 )
-) && (
 
-if "%fetch_origin%" equ "true" (
-  rem title UPDATING %sub_path% %branch_name%
-  echo.
-  rem echo ************************************************
-  echo [ Running: git fetch origin  %branch_name% ]
-  rem echo ************************************************
-  call git fetch origin  %branch_name% 
- )
-) && (
+if /I "%fetch_origin%"=="true" (
+  echo [ Running: git fetch origin "%branch_name%" ]
+  git fetch origin "%branch_name%"
+  if errorlevel 1 goto failed
+)
 
- if "%checkout_branch%" equ "true" (
+if /I "%checkout_branch%"=="true" (
+  echo [ Running: git checkout "%branch_name%" ]
+  git checkout "%branch_name%"
+  if errorlevel 1 goto failed
+)
 
-  echo.
-  rem echo ************************************************
-  echo [ Running: git checkout %branch_name% ]
-  rem echo ************************************************
-  call git checkout  %branch_name%  
- ) 
+echo [ Running: git pull origin "%branch_name%" ]
+git pull origin "%branch_name%"
+if errorlevel 1 goto failed
 
-) && (
-
-REM call git reset --hard HEAD  ) && (
-echo.
-REM echo ************************************************
-echo [ Running: git pull origin %branch_name% ]
-REM echo ************************************************
-
-call git pull origin %branch_name% 
-) && (
-
-echo.
-REM echo **************************************
 echo [ Running: git status -s -b -v ]
-REM echo **************************************
+git status -s -b -v
+if errorlevel 1 goto failed
 
-call git status -s -b -v
-  ) && (
-  
+if /I "%build-after-update%"=="true" (
+  echo %sub_path% %branch_name% BUILDING
+  title %sub_path% %branch_name% BUILDING
+  if exist command1.cmd (
+    echo [ Running: call command1.cmd ]
+    call command1.cmd
+    if errorlevel 1 goto failed
+  ) else if exist command2.cmd (
+    echo [ Running: call command2.cmd ]
+    call command2.cmd
+    if errorlevel 1 goto failed
+  ) else (
+    echo NO BUILD COMMAND FOUND FOR %sub_path% %branch_name%
+  )
+)
 
-echo.       
+echo.
 echo ********************************************************************************
 echo * UPDATE FINISHED. Branch: '%branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
 title UPDATE FINISHED. Branch: '%branch_name%'. Folder: '%sub_path%'
+popd
+endlocal & exit /b 0
 
-) && (
-  if "%build-after-update%" equ "true" (
-    ECHO %sub_path% %branch_name% BUILDING  
-    title %sub_path% %branch_name% BUILDING
- 
-    if exist command1.cmd ( 
-      command1.cmd  
-    ) else if exist command2.cmd (
-      command2.cmd
-    ) else (
-       ECHO NO BUILD COMMAND FOUND FOR %sub_path% %branch_name%   
-    )
-  )
-) && (
-if "%exitonfinish%" equ "true" ( 
-exit
-)
-) && (
-popd ) 
-
-
-goto EOF
+:failed
+set "update_exit_code=%errorlevel%"
+if "%update_exit_code%"=="0" set "update_exit_code=1"
+echo ERROR: Git update failed for branch "%branch_name%" in "%sub_path%".
+popd
+endlocal & exit /b %update_exit_code%
 
 :noFolder
-  echo ERROR: '%sub_path%' path not found.
-  echo.  
-goto noArgs
-
-:noArgs
+echo ERROR: "%sub_path%" path not found.
   echo This command updates a Git branch to the latest state.
   echo [Optional] The first parameter is the subfolder path where the branch is being updated. If the parameter is missing, the current folder is used.
   echo [Optional] The second parameter is the branch name. If the parameter is missing, the current local branch is used.
-  echo Usage:
-  echo   git-update.cmd   
-  echo or
-  echo   git-update.cmd subfolder_name  
-  echo or
-  echo   git-update.cmd subfolder_name branch_name 
-goto EOF
 
-
-:EOF
+echo Usage:
+echo   git-update.cmd
+echo   git-update.cmd subfolder_name
+echo   git-update.cmd subfolder_name branch_name
+endlocal & exit /b 1

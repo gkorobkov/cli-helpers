@@ -276,7 +276,7 @@ process_file() {
             local cnt=${slug_cnt[$base_slug]:-0}
             slug_cnt[$base_slug]=$(( cnt + 1 ))
             local slug
-            [[ $cnt -eq 0 ]] && slug="$base_slug" || slug="${base_slug}-$(( cnt + 1 ))"
+            [[ $cnt -eq 0 ]] && slug="$base_slug" || slug="${base_slug}-${cnt}"
             local pad="" k
             for (( k = 0; k < hlvl[$j] - base_lvl; k++ )); do pad+="$TOC_INDENT"; done
             toc_lines+=("${pad}${TOC_BULLET} [${htxt[$j]}](#${slug})")
@@ -352,7 +352,7 @@ process_file() {
             local cnt=${slug_cnt[$base_slug]:-0}
             slug_cnt[$base_slug]=$(( cnt + 1 ))
             local slug
-            [[ $cnt -eq 0 ]] && slug="$base_slug" || slug="${base_slug}-$(( cnt + 1 ))"
+            [[ $cnt -eq 0 ]] && slug="$base_slug" || slug="${base_slug}-${cnt}"
             local pad="" k
             for (( k = 0; k < hlvl[$j] - base_lvl; k++ )); do pad+="$TOC_INDENT"; done
             toc_lines+=("${pad}${TOC_BULLET} [${htxt[$j]}](#${slug})")

@@ -116,7 +116,9 @@ if /i "%ARG%"=="--user"         goto :arg_user
 if /i "%ARG%"=="--server"       goto :arg_server
 if /i "%ARG%"=="--ssh_key"      goto :arg_ssh_key
 if /i "%ARG%"=="--local_path"   goto :arg_local_path
+if /i "%ARG%"=="--local_dir"    goto :arg_local_path
 if /i "%ARG%"=="--remote_path"  goto :arg_remote_path
+if /i "%ARG%"=="--remote_dir"   goto :arg_remote_path
 if /i "%ARG%"=="--deploy_hint"  goto :arg_deploy_hint
 if /i "%ARG%"=="--from"         goto :arg_from
 if /i "%ARG%"=="--to"           goto :arg_to
@@ -130,7 +132,7 @@ if /i "%ARG%"=="/list"          ( set "CMD=list" & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
-echo  Valid:   --config  --profile  --user  --server  --ssh_key  --local_path  --remote_path  --deploy_hint  --from  --to  --check  --copy  --list
+echo  Valid:   --config  --profile  --user  --server  --ssh_key  --local_path  --local_dir  --remote_path  --remote_dir  --deploy_hint  --from  --to  --check  --copy  --list
 echo.
 exit /b 1
 
@@ -401,6 +403,24 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
 
 REM =============================================================
 :run_check
+echo [ Running: findstr.exe /R /X "[A-Za-z_][A-Za-z0-9._-]*" ^(validate SSH user^) ]
+echo(!RUSER!| %SystemRoot%\System32\findstr.exe /R /X "[A-Za-z_][A-Za-z0-9._-]*" >nul
+if errorlevel 1 (
+    echo  [ERROR]  Unsafe SSH user name: !RUSER!
+    exit /b 1
+)
+
+set "REMOTE_VALUES_SAFE=1"
+set /a _PAIR_LAST=PAIR_COUNT-1
+for /l %%i in (0,1,!_PAIR_LAST!) do (
+    set "_VALIDATE_REMOTE=!PAIR_%%i_REMOTE!"
+    if not "!_VALIDATE_REMOTE:'=!"=="!_VALIDATE_REMOTE!" (
+        echo  [ERROR]  Remote paths containing apostrophes are not supported: !_VALIDATE_REMOTE!
+        set "REMOTE_VALUES_SAFE=0"
+    )
+)
+if "!REMOTE_VALUES_SAFE!"=="0" exit /b 1
+
 echo.
 echo  ============================================
 if defined PROFILE (
@@ -411,7 +431,7 @@ if defined PROFILE (
 echo   Command : %CMD%
 if defined CFG echo   Config  : %CFG%
 echo  ============================================
-echo   Server  : %RUSER%@%SERVER%
+echo   Server  : !RUSER!@!SERVER!
 if defined SSH_KEY ( echo   SSH key : %SSH_KEY% ) else ( echo   SSH key : ^(default^) )
 echo  ============================================
 echo.
@@ -447,6 +467,7 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
     if exist "!_LOCAL!\" (
         echo  [OK]     Local folder found
         set "PAIR_%%i_IS_DIR=1"
+        echo [ Running: where rsync ]
         where rsync >nul 2>&1
         if !ERRORLEVEL! neq 0 (
             echo  [WARN]   rsync not found - folder copy will use scp ^(no .env/.gitignore exclusions^)
@@ -461,18 +482,20 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         set "ALL_OK=0"
     )
 
-    echo  Checking SSH to %RUSER%@%SERVER%...
+    echo  Checking SSH to !RUSER!@!SERVER!...
     set "SSH_RESULT="
     set "_SSH_TMP=%TEMP%\ssh_chk_%%i.tmp"
     if "!PAIR_%%i_IS_DIR!"=="1" (
-        ssh %SSH_KEY_ARG% -o ConnectTimeout=5 %RUSER%@%SERVER% "if [ -d '!_REMOTE!' ]; then if [ -w '!_REMOTE!' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" > "!_SSH_TMP!" 2>&1
+        echo  Command: ssh !SSH_KEY_ARG! -o ConnectTimeout=5 "!RUSER!@!SERVER!" "if [ -d '!_REMOTE!' ]; then if [ -w '!_REMOTE!' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi"
+        ssh !SSH_KEY_ARG! -o ConnectTimeout=5 "!RUSER!@!SERVER!" "if [ -d '!_REMOTE!' ]; then if [ -w '!_REMOTE!' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" > "!_SSH_TMP!" 2>&1
     ) else (
-        ssh %SSH_KEY_ARG% -o ConnectTimeout=5 %RUSER%@%SERVER% "RPAR=$(dirname '!_REMOTE!'); if [ -d '!_REMOTE!' ] && [ -w '!_REMOTE!' ]; then echo FOUND; elif [ -d $RPAR ] && [ -w $RPAR ]; then echo FOUND; elif [ -d $RPAR ]; then echo NOPERM; else echo MISSING; fi" > "!_SSH_TMP!" 2>&1
+        echo  Command: ssh !SSH_KEY_ARG! -o ConnectTimeout=5 "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); if [ -d '!_REMOTE!' ] && [ -w '!_REMOTE!' ]; then echo FOUND; elif [ -d $RPAR ] && [ -w $RPAR ]; then echo FOUND; elif [ -d $RPAR ]; then echo NOPERM; else echo MISSING; fi"
+        ssh !SSH_KEY_ARG! -o ConnectTimeout=5 "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); if [ -d '!_REMOTE!' ] && [ -w '!_REMOTE!' ]; then echo FOUND; elif [ -d $RPAR ] && [ -w $RPAR ]; then echo FOUND; elif [ -d $RPAR ]; then echo NOPERM; else echo MISSING; fi" > "!_SSH_TMP!" 2>&1
     )
     if exist "!_SSH_TMP!" ( set /p SSH_RESULT=< "!_SSH_TMP!" & del "!_SSH_TMP!" 2>nul )
 
     if not defined SSH_RESULT (
-        echo  [FAILED] SSH connection failed: %RUSER%@%SERVER%
+        echo  [FAILED] SSH connection failed: !RUSER!@!SERVER!
         set "ALL_OK=0"
     ) else if /i "!SSH_RESULT!"=="FOUND" (
         echo  [OK]     SSH OK - remote path found
@@ -518,48 +541,52 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         rem --- Folder mode ---
         if "!PAIR_%%i_REMOTE_MISSING!"=="1" (
             echo  Creating remote folder: !_REMOTE!
-            ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "sudo mkdir -p '!_REMOTE!' && sudo chown %RUSER%:%RUSER% '!_REMOTE!'"
+            echo  Command: ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "sudo mkdir -p -- '!_REMOTE!' && sudo chown -- '!RUSER!:!RUSER!' '!_REMOTE!'"
+            ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "sudo mkdir -p -- '!_REMOTE!' && sudo chown -- '!RUSER!:!RUSER!' '!_REMOTE!'"
             if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not create remote folder. & exit /b 1 )
             echo  [OK]     Remote folder created.
             echo.
         )
         if "!PAIR_%%i_REMOTE_NOPERM!"=="1" (
             echo  Fixing permissions: !_REMOTE!
-            ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "sudo chown %RUSER%:%RUSER% '!_REMOTE!'"
+            echo  Command: ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "sudo chown -- '!RUSER!:!RUSER!' '!_REMOTE!'"
+            ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "sudo chown -- '!RUSER!:!RUSER!' '!_REMOTE!'"
             if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not fix permissions. & exit /b 1 )
             echo  [OK]     Permissions fixed.
             echo.
         )
         if /i "!PAIR_%%i_COPY_METHOD!"=="scp" (
-            echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." %RUSER%@%SERVER%:!_REMOTE!/
+            echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." "!RUSER!@!SERVER!:!_REMOTE!/"
             echo.
-            scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." %RUSER%@%SERVER%:!_REMOTE!/
+            scp %SCP_OPTS% !SSH_KEY_ARG! -r "!_LOCAL!\." "!RUSER!@!SERVER!:!_REMOTE!/"
         ) else (
             set "RSYNC_E=ssh"
             if defined SSH_KEY set "RSYNC_E=ssh -i !SSH_KEY!"
-            echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+            echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" "!RUSER!@!SERVER!:!_REMOTE!/"
             echo.
-            rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" %RUSER%@%SERVER%:!_REMOTE!/
+            rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" "!RUSER!@!SERVER!:!_REMOTE!/"
         )
     ) else (
         rem --- File mode ---
         if "!PAIR_%%i_REMOTE_MISSING!"=="1" (
             echo  Creating remote parent folder for: !_REMOTE!
-            ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "RPAR=$(dirname '!_REMOTE!'); sudo mkdir -p $RPAR && sudo chown %RUSER%:%RUSER% $RPAR"
+            echo  Command: ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); sudo mkdir -p -- $RPAR && sudo chown -- '!RUSER!:!RUSER!' $RPAR"
+            ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); sudo mkdir -p -- $RPAR && sudo chown -- '!RUSER!:!RUSER!' $RPAR"
             if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not create remote parent folder. & exit /b 1 )
             echo  [OK]     Remote parent folder created.
             echo.
         )
         if "!PAIR_%%i_REMOTE_NOPERM!"=="1" (
             echo  Fixing permissions for parent of: !_REMOTE!
-            ssh %SSH_KEY_ARG% %RUSER%@%SERVER% "RPAR=$(dirname '!_REMOTE!'); sudo chown %RUSER%:%RUSER% $RPAR"
+            echo  Command: ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); sudo chown -- '!RUSER!:!RUSER!' $RPAR"
+            ssh !SSH_KEY_ARG! "!RUSER!@!SERVER!" "RPAR=$(dirname -- '!_REMOTE!'); sudo chown -- '!RUSER!:!RUSER!' $RPAR"
             if !ERRORLEVEL! neq 0 ( echo  [FAILED] Could not fix permissions. & exit /b 1 )
             echo  [OK]     Permissions fixed.
             echo.
         )
-        echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
+        echo  Command: scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" "!RUSER!@!SERVER!:!_REMOTE!"
         echo.
-        scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" %RUSER%@%SERVER%:!_REMOTE!
+        scp %SCP_OPTS% !SSH_KEY_ARG! "!_LOCAL!" "!RUSER!@!SERVER!:!_REMOTE!"
     )
 
     if !ERRORLEVEL! equ 0 (

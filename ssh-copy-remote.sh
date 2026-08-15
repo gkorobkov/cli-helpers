@@ -6,6 +6,7 @@
 #
 #  Dependencies:
 #    ssh, scp  - OpenSSH (standard on Linux/macOS; on some distros: sudo apt install openssh-client)
+#    realpath, sort, tr - standard GNU/POSIX command-line utilities
 #
 #    rsync     - optional for folder sync (improves sync and supports excludes)
 #                sudo apt install rsync  /  brew install rsync  /  scoop install rsync
@@ -83,6 +84,17 @@
 #    deploy_hint=cd /home/myuser/another-project && npm start
 # =============================================================
 
+print_command() {
+    printf '[ Running:' >&2
+    printf ' %q' "$@" >&2
+    printf ' ]\n' >&2
+}
+
+shell_quote() {
+    local value="$1"
+    printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
 CMD="check"
 PROFILE=""
 CFG=""
@@ -118,7 +130,9 @@ for ARG in "$@"; do
         --server=*)      SERVER="${ARG#--server=}" ;;
         --ssh_key=*)     SSH_KEY="${ARG#--ssh_key=}" ;;
         --local_dir=*)   LOCAL_DIR="${ARG#--local_dir=}" ;;
+        --local_path=*)  LOCAL_DIR="${ARG#--local_path=}" ;;
         --remote_dir=*)  REMOTE_DIR="${ARG#--remote_dir=}" ;;
+        --remote_path=*) REMOTE_DIR="${ARG#--remote_path=}" ;;
         --deploy_hint=*) DEPLOY_HINT="${ARG#--deploy_hint=}" ;;
         --from=*)        _pending_from="${ARG#--from=}" ;;
         --to=*)
@@ -129,6 +143,7 @@ for ARG in "$@"; do
                 echo ""
                 exit 1
             fi
+            print_command realpath -m "$_pending_from"
             PAIR_LOCALS+=("$(realpath -m "$_pending_from")")
             PAIR_REMOTES+=("$_remote")
             _pending_from=""
@@ -139,7 +154,7 @@ for ARG in "$@"; do
         *)
             echo ""
             echo "  [ERROR]  Unknown argument: $ARG"
-            echo "  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_dir=  --remote_dir=  --deploy_hint=  --from=  --to=  --check  --copy  --list"
+            echo "  Valid:   --config=  --profile=  --user=  --server=  --ssh_key=  --local_dir=  --local_path=  --remote_dir=  --remote_path=  --deploy_hint=  --from=  --to=  --check  --copy  --list"
             echo ""
             exit 1 ;;
     esac
@@ -154,6 +169,7 @@ fi
 
 # Convert legacy --local_dir/--remote_dir to a pair
 if [[ -n "$LOCAL_DIR" && -n "$REMOTE_DIR" ]]; then
+    print_command realpath -m "$LOCAL_DIR"
     PAIR_LOCALS+=("$(realpath -m "$LOCAL_DIR")")
     PAIR_REMOTES+=("$REMOTE_DIR")
 fi
@@ -164,10 +180,22 @@ fi
 if [[ -z "$RUSER" || -z "$SERVER" || ${#PAIR_LOCALS[@]} -eq 0 ]]; then
 
     if [[ -z "$CFG" ]]; then
-        for f in *.remote.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
+        for f in *.remote.ini; do
+            if [[ -f "$f" ]]; then
+                print_command realpath "$f"
+                CFG="$(realpath "$f")"
+                break
+            fi
+        done
     fi
     if [[ -z "$CFG" ]]; then
-        for f in *.local.ini; do [[ -f "$f" ]] && CFG="$(realpath "$f")" && break; done
+        for f in *.local.ini; do
+            if [[ -f "$f" ]]; then
+                print_command realpath "$f"
+                CFG="$(realpath "$f")"
+                break
+            fi
+        done
     fi
 
     if [[ -z "$CFG" ]]; then
@@ -280,13 +308,16 @@ if [[ -z "$RUSER" || -z "$SERVER" || ${#PAIR_LOCALS[@]} -eq 0 ]]; then
 
     # Add legacy local_dir/remote_dir pair
     if [[ -n "$_cfg_local" && -n "$_cfg_remote" ]]; then
+        print_command realpath -m "$_cfg_local"
         PAIR_LOCALS+=("$(realpath -m "$_cfg_local")")
         PAIR_REMOTES+=("$_cfg_remote")
     fi
 
     # Add from_N/to_N pairs from config (sorted numerically)
-    for idx in $(echo "${!_cfg_from[@]}" | tr ' ' '\n' | sort -n); do
+    printf '[ Running: tr " " "\\n" ^| sort -n ]\n' >&2
+    for idx in $(printf '%s\n' "${!_cfg_from[@]}" | tr ' ' '\n' | sort -n); do
         if [[ -n "${_cfg_from[$idx]:-}" && -n "${_cfg_to[$idx]:-}" ]]; then
+            print_command realpath -m "${_cfg_from[$idx]}"
             PAIR_LOCALS+=("$(realpath -m "${_cfg_from[$idx]}")")
             PAIR_REMOTES+=("${_cfg_to[$idx]}")
         fi
@@ -301,6 +332,11 @@ if [[ -z "$RUSER" || -z "$SERVER" || ${#PAIR_LOCALS[@]} -eq 0 ]]; then
     fi
 
 fi  # end config mode
+
+if [[ ! "$RUSER" =~ ^[A-Za-z_][A-Za-z0-9._-]*$ ]]; then
+    echo "  [ERROR]  Unsafe SSH user name: $RUSER" >&2
+    exit 1
+fi
 
 # expand ~ in SSH_KEY
 SSH_KEY="${SSH_KEY/#\~/$HOME}"
@@ -369,15 +405,20 @@ for i in "${!PAIR_LOCALS[@]}"; do
     fi
 
     echo "  Checking SSH to $RUSER@$SERVER..."
+    _remote_q="$(shell_quote "$_remote")"
     if [[ "${PAIR_IS_DIR[$i]}" -eq 1 ]]; then
+        _remote_command="if [ -d $_remote_q ]; then if [ -w $_remote_q ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi"
+        print_command ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes "$RUSER@$SERVER" "$_remote_command"
         SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
             "$RUSER@$SERVER" \
-            "if [ -d '$_remote' ]; then if [ -w '$_remote' ]; then echo FOUND; else echo NOPERM; fi; else echo MISSING; fi" \
+            "$_remote_command" \
             2>/dev/null || true)
     else
+        _remote_command="RPAR=\$(dirname -- $_remote_q); if [ -d $_remote_q ] && [ -w $_remote_q ]; then echo FOUND; elif [ -d \"\$RPAR\" ] && [ -w \"\$RPAR\" ]; then echo FOUND; elif [ -d \"\$RPAR\" ]; then echo NOPERM; else echo MISSING; fi"
+        print_command ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes "$RUSER@$SERVER" "$_remote_command"
         SSH_RESULT=$(ssh "${SSH_KEY_ARG[@]}" -o ConnectTimeout=5 -o BatchMode=yes \
             "$RUSER@$SERVER" \
-            "RPAR=\$(dirname '$_remote'); if [ -d '$_remote' ] && [ -w '$_remote' ]; then echo FOUND; elif [ -d \$RPAR ] && [ -w \$RPAR ]; then echo FOUND; elif [ -d \$RPAR ]; then echo NOPERM; else echo MISSING; fi" \
+            "$_remote_command" \
             2>/dev/null || true)
     fi
 
@@ -427,6 +468,8 @@ for i in "${!PAIR_LOCALS[@]}"; do
     _is_dir="${PAIR_IS_DIR[$i]}"
     _remote_missing="${PAIR_REMOTE_MISSING[$i]}"
     _remote_noperm="${PAIR_REMOTE_NOPERM[$i]}"
+    _remote_q="$(shell_quote "$_remote")"
+    _owner_q="$(shell_quote "$RUSER:$RUSER")"
 
     echo "  --- Pair $i: $_local  ->  $_remote"
     echo ""
@@ -434,14 +477,18 @@ for i in "${!PAIR_LOCALS[@]}"; do
     if [[ "$_is_dir" -eq 1 ]]; then
         if [[ "$_remote_missing" -eq 1 ]]; then
             echo "  Creating remote folder: $_remote"
-            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo mkdir -p '$_remote' && sudo chown $RUSER:$RUSER '$_remote'"
+            _remote_command="sudo mkdir -p -- $_remote_q && sudo chown -- $_owner_q $_remote_q"
+            print_command ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
             if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not create remote folder."; exit 1; fi
             echo "  [OK]     Remote folder created."
             echo ""
         fi
         if [[ "$_remote_noperm" -eq 1 ]]; then
             echo "  Fixing permissions: $_remote"
-            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "sudo chown $RUSER:$RUSER '$_remote'"
+            _remote_command="sudo chown -- $_owner_q $_remote_q"
+            print_command ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
             if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not fix permissions."; exit 1; fi
             echo "  [OK]     Permissions fixed."
             echo ""
@@ -460,14 +507,18 @@ for i in "${!PAIR_LOCALS[@]}"; do
     else
         if [[ "$_remote_missing" -eq 1 ]]; then
             echo "  Creating remote parent folder for: $_remote"
-            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "RPAR=\$(dirname '$_remote'); sudo mkdir -p \$RPAR && sudo chown $RUSER:$RUSER \$RPAR"
+            _remote_command="RPAR=\$(dirname -- $_remote_q); sudo mkdir -p -- \"\$RPAR\" && sudo chown -- $_owner_q \"\$RPAR\""
+            print_command ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
             if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not create remote parent folder."; exit 1; fi
             echo "  [OK]     Remote parent folder created."
             echo ""
         fi
         if [[ "$_remote_noperm" -eq 1 ]]; then
             echo "  Fixing permissions for parent of: $_remote"
-            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "RPAR=\$(dirname '$_remote'); sudo chown $RUSER:$RUSER \$RPAR"
+            _remote_command="RPAR=\$(dirname -- $_remote_q); sudo chown -- $_owner_q \"\$RPAR\""
+            print_command ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
+            ssh "${SSH_KEY_ARG[@]}" "$RUSER@$SERVER" "$_remote_command"
             if [[ $? -ne 0 ]]; then echo "  [FAILED] Could not fix permissions."; exit 1; fi
             echo "  [OK]     Permissions fixed."
             echo ""

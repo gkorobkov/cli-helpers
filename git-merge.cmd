@@ -16,82 +16,68 @@ REM Examples:
 REM   git-merge.cmd feature/main main
 REM   git-merge.cmd feature/main main C:\work\my-repo
 
-set from_branch_name=%1
+setlocal EnableExtensions
+
+set "from_branch_name=%~1"
+set "to_branch_name=%~2"
+set "sub_path=%~3"
+
 if not defined from_branch_name goto noArgs
-
-set to_branch_name=%2
 if not defined to_branch_name goto noArgs
+if not defined sub_path set "sub_path=%CD%"
+if not exist "%sub_path%\" goto noFolder
 
-set sub_path=%3
-if not defined sub_path set sub_path=%cd% 
-if not exist %sub_path% goto noFolder
-cd %sub_path%
+pushd "%sub_path%" || (
+  echo ERROR: Failed to enter repository folder: "%sub_path%"
+  endlocal & exit /b 1
+)
 
-:gitMerge
-
-echo.       
+echo.
 echo ********************************************************************************
 echo * Running git MERGE. From branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 echo ********************************************************************************
-title  Running git MERGE. From branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
+title Running git MERGE. From branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
 
-pushd . && (
+echo [ Running: call "%~dp0git-update.cmd" "%sub_path%" "%from_branch_name%" ]
+set "checkout_branch=true"
+call "%~dp0git-update.cmd" "%sub_path%" "%from_branch_name%"
+if errorlevel 1 goto failed
 
-call git-update.cmd %sub_path% %from_branch_name% ) && (
-call git-update.cmd %sub_path% %to_branch_name% ) && (
+echo [ Running: call "%~dp0git-update.cmd" "%sub_path%" "%to_branch_name%" ]
+call "%~dp0git-update.cmd" "%sub_path%" "%to_branch_name%"
+if errorlevel 1 goto failed
 
-REM call git commit -a -m "fix CRLF"  ) && (
-REM call git push  ) && (
+echo [ Running: git merge --allow-unrelated-histories "%from_branch_name%" ]
+git merge --allow-unrelated-histories "%from_branch_name%"
+if errorlevel 1 goto failed
 
-echo.       
-echo ********************************************************************************
-echo * MERGE from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
-echo ********************************************************************************
-title  MERGE from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
+echo [ Running: git push ]
+git push
+if errorlevel 1 goto failed
 
-call git merge --allow-unrelated-histories  %from_branch_name%  ) && (
+echo [ Running: git status -s ]
+git status -s
+if errorlevel 1 goto failed
 
-REM echo ***************
-REM echo *  git commit *
-REM echo ***************
-REM call git commit  ) && (
-REM pause
+echo MERGE finished from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
+title %comspec%
+popd
+endlocal & exit /b 0
 
-echo.
-echo ***************
-echo *  git push *
-echo ***************
-call git push  ) && (
-
-echo. 
-echo *******************
-echo *  git status -s  *
-echo *******************
-call git status -s  ) && (
-
-ECHO MERGE finished from branch: '%from_branch_name%', to branch: '%to_branch_name%'. Folder: '%sub_path%'
-title %comspec% ) && (
-popd )
-
-
-goto EOF
+:failed
+set "merge_exit_code=%errorlevel%"
+if "%merge_exit_code%"=="0" set "merge_exit_code=1"
+echo ERROR: Git merge failed.
+popd
+endlocal & exit /b %merge_exit_code%
 
 :noFolder
-  echo ERROR: '%sub_path%' path not found.
-  echo.  
-goto noArgs
+echo ERROR: "%sub_path%" path not found.
+endlocal & exit /b 1
 
 :noArgs
-  echo This command merges two Git branches.
-  echo [Required] The first parameter is the source branch name.
-  echo [Required] The second parameter is the destination branch name.
-  echo [Optional] The third parameter is the subfolder path where the branch is being updated. If the parameter is missing, the current folder is used.
-  echo Usage:
-  echo   git-merge.cmd from_branch_name to_branch_name 
-  echo or
-  echo   git-merge.cmd from_branch_name to_branch_name subfolder_name  
-  
-goto EOF
-
-
-:EOF
+echo This command merges two Git branches.
+echo Usage:
+echo   git-merge.cmd from_branch_name to_branch_name
+echo   git-merge.cmd from_branch_name to_branch_name subfolder_name
+endlocal & exit /b 2

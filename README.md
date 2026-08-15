@@ -42,6 +42,14 @@ Use them when you want to quickly check whether the current folder is already av
 
 Files: `current-path.cmd`, `current-path.sh`
 
+Dependencies:
+- Windows: Windows PowerShell and standard CMD facilities.
+- Linux/macOS: Bash 3.2+ plus `grep`, `mktemp`, `mv`, and `touch`.
+
+Default and destructive behavior:
+- Without a mode, the helpers only check the current process `PATH` and do not change it.
+- `add` and `delete` explicitly modify the persistent user or shell-profile `PATH`.
+
 General form:
 
 ```bat
@@ -80,6 +88,14 @@ Linux note:
 ## Shows, grants, or removes Windows file access permissions.
 
 File: `file-access.cmd`
+
+Dependencies:
+- Windows `icacls`, included with supported Windows versions.
+
+Destructive behavior:
+- The default invocation only displays the ACL.
+- `--grant`, `--remove`, and `--fix-ssh-access` explicitly modify the target file ACL.
+- The helper stops if inheritance removal, ACL-entry removal, or the final grant operation fails.
 
 Wraps `icacls` for common permission tasks on a single file.
 Use it to inspect the current ACL, grant access to the current user and system accounts, remove a specific account, or apply the standard SSH private key fix in one step.
@@ -209,6 +225,14 @@ locks.cmd --kill
 
 Files: `ssh-copy-remote.cmd`, `ssh-copy-remote.sh`
 
+Dependencies:
+- Windows: OpenSSH Client (`ssh` and `scp`); `rsync` is optional for directory synchronization.
+- Linux/macOS: Bash, OpenSSH, and `realpath`, `sort`, and `tr`; `rsync` is optional.
+
+Default and destructive behavior:
+- Check mode is the default and does not copy files.
+- `--copy` explicitly enables remote directory creation, permission repair, and file transfer. Existing destination files may be overwritten by `scp` or `rsync`.
+
 Verifies local folder, SSH key, and remote connectivity, then copies the folder with `scp -r`.
 Without `--copy` the script performs a connectivity check only.
 Supports two modes: **config file** (named profiles in a `*.remote.ini` file) or **inline** (all connection details passed directly as parameters, no config file needed).
@@ -242,12 +266,16 @@ Parameters:
 - `--user=name`: Inline mode. SSH user name.
 - `--server=host`: Inline mode. SSH server host.
 - `--ssh_key=path`: Optional. Path to SSH private key.
-- `--local_dir=path`: Inline mode. Local folder to copy.
-- `--remote_dir=path`: Inline mode. Remote destination path.
+- `--local_dir=path` / `--local_path=path`: Inline mode. Local path to copy. Both aliases are accepted on Windows and Linux.
+- `--remote_dir=path` / `--remote_path=path`: Inline mode. Remote destination path. Both aliases are accepted on Windows and Linux.
 - `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
 - `--check`: Optional. Verify connectivity without copying (default mode).
 - `--copy`: Optional. Run the actual `scp` copy after checks pass.
 - `--list`: Optional. Print all available profiles and exit.
+
+Limitations:
+- The remote host must provide a POSIX-compatible shell plus `dirname`, `mkdir`, `chown`, and `sudo` when remote creation or permission repair is needed.
+- Windows rejects remote paths containing apostrophes because they cannot be represented safely by the CMD implementation.
 
 Config file format (save as `*.remote.ini`, e.g. `copy-remote.remote.ini`; excluded from git):
 
@@ -398,6 +426,14 @@ git-stash-list.cmd
 
 File: `git-update.cmd`
 
+Dependencies:
+- Git for Windows and the sibling `git-branch-name.cmd` helper.
+
+Default behavior and limitations:
+- The script pulls the selected remote branch into the current local branch unless `checkout_branch=true` is set.
+- `auto_stash=true` currently prints a notice but does not create a stash.
+- Git and delegated build-script failures are returned to the caller.
+
 Updates a repository folder by optionally fetching, optionally checking out a branch, pulling from `origin`, and printing `git status -s -b -v`.
 If the branch argument is omitted, the script resolves the current branch with `git-branch-name.cmd`.
 The script also supports optional build and flow-control flags through environment variables.
@@ -441,6 +477,13 @@ git-update.cmd C:\work\my-repo main
 ## Merges one Git branch into another and pushes the result.
 
 File: `git-merge.cmd`
+
+Dependencies:
+- Git for Windows and the sibling `git-update.cmd` helper.
+
+Destructive behavior:
+- Running the helper explicitly checks out and updates both named branches, merges into the destination branch, and pushes the result to its configured upstream.
+- The script stops on the first failed update, checkout, merge, push, or status command and returns a non-zero exit code.
 
 Updates both branches with `git-update.cmd`, checks out the destination branch, merges the source branch with `--allow-unrelated-histories`, pushes, and prints `git status -s`.
 The script operates inside the current folder unless a target folder is passed explicitly.

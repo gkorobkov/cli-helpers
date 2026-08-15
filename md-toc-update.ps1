@@ -200,7 +200,7 @@ function Build-TocLines {
         $count = 0
         if ($slugCounts.ContainsKey($baseSlug)) { $count = [int]$slugCounts[$baseSlug] }
         $slugCounts[$baseSlug] = $count + 1
-        $slug = if ($count -eq 0) { $baseSlug } else { "$baseSlug-$($count + 1)" }
+        $slug = if ($count -eq 0) { $baseSlug } else { "$baseSlug-$count" }
 
         $indentLevel = [Math]::Max(0, $heading.Level - $baseLevel)
         $indent = $TOC_INDENT * $indentLevel

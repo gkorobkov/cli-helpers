@@ -8,6 +8,7 @@
 #
 # Dependencies:
 #   bash 3.2+ - standard on Linux and macOS (no install needed)
+#   grep, mktemp, mv, touch - standard Unix utilities
 #
 # Usage:
 #   ./current-path.sh [list|add|delete]
@@ -104,16 +105,6 @@ is_sourced() {
   [[ "${BASH_SOURCE[0]}" != "$0" ]]
 }
 
-finish() {
-  local exit_code="${1:-0}"
-
-  if is_sourced; then
-    return "$exit_code"
-  fi
-
-  exit "$exit_code"
-}
-
 usage() {
   printf 'Usage:\n'
   printf '  ./current-path.sh\n'
@@ -133,20 +124,22 @@ case "$mode" in
   check)
     if contains_current_path; then
       printf 'YES\n'
-      finish 0
+      return 0 2>/dev/null || exit 0
     fi
 
     printf 'NO\n'
-    finish 1
+    return 1 2>/dev/null || exit 1
     ;;
   list)
     printf 'PATH entries from the current shell environment variable PATH:\n'
     list_current_path
-    finish 0
+    return 0 2>/dev/null || exit 0
     ;;
   add)
+    printf '[ Running: touch "%s" ]\n' "$profile_file"
     touch "$profile_file"
 
+    printf '[ Running: grep -Fqx "%s" "%s" ]\n' "$export_line" "$profile_file"
     if ! grep -Fqx "$export_line" "$profile_file"; then
       printf '\n%s\n' "$export_line" >> "$profile_file"
     fi
@@ -164,17 +157,21 @@ case "$mode" in
       printf 'Updated %s. Open a new shell or run `source %s` to refresh PATH.\n' "$profile_file" "$profile_file"
     fi
 
-    finish 0
+    return 0 2>/dev/null || exit 0
     ;;
   delete)
     removed_from_profile=0
     removed_from_session=0
 
     if [[ -f "$profile_file" ]]; then
+      printf '[ Running: grep -Fqx "%s" "%s" ]\n' "$export_line" "$profile_file"
       if grep -Fqx "$export_line" "$profile_file"; then
         removed_from_profile=1
+        printf '[ Running: mktemp ]\n'
         tmp_file="$(mktemp)"
+        printf '[ Running: grep -Fvx "%s" "%s" ^> "%s" ]\n' "$export_line" "$profile_file" "$tmp_file"
         grep -Fvx "$export_line" "$profile_file" > "$tmp_file" || true
+        printf '[ Running: mv "%s" "%s" ]\n' "$tmp_file" "$profile_file"
         mv "$tmp_file" "$profile_file"
       fi
     fi
@@ -187,7 +184,7 @@ case "$mode" in
     if (( removed_from_profile == 0 && removed_from_session == 0 )); then
       printf 'Current directory was not found in PATH:\n'
       printf '  %s\n' "$target_path"
-      finish 1
+      return 1 2>/dev/null || exit 1
     fi
 
     printf 'Removed current directory from PATH where it was found:\n'
@@ -199,10 +196,10 @@ case "$mode" in
       printf 'Updated %s. Open a new shell to refresh PATH.\n' "$profile_file"
     fi
 
-    finish 0
+    return 0 2>/dev/null || exit 0
     ;;
   *)
     usage
-    finish 2
+    return 2 2>/dev/null || exit 2
     ;;
 esac
