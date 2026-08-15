@@ -451,6 +451,8 @@ set "SSH_KEY_ARG="
 if defined SSH_KEY set "SSH_KEY_ARG=-i "%SSH_KEY%""
 set "SSH_BASE_OPTS=-o BatchMode=yes -o ConnectTimeout=5 -o ConnectionAttempts=1 -o ServerAliveInterval=5 -o ServerAliveCountMax=2"
 set "SSH_RUN_OPTS=-n -T !SSH_BASE_OPTS!"
+REM Streaming transfers must keep stdin open so the archive reaches remote tar.
+set "SSH_STREAM_OPTS=-T !SSH_BASE_OPTS!"
 
 set "ALL_OK=1"
 
@@ -586,13 +588,13 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
         if /i "!PAIR_%%i_COPY_METHOD!"=="tar" (
             pushd "!_LOCAL!"
             if "!PAIR_%%i_HAS_GITIGNORE!"=="1" (
-                echo  Command: tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . ^| ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                echo  Command: tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
                 echo.
-                tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . | ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
             ) else (
-                echo  Command: tar --exclude=.env --exclude=*/.env -cf - . ^| ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                echo  Command: tar --exclude=.env --exclude=*/.env -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
                 echo.
-                tar --exclude=.env --exclude=*/.env -cf - . | ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
+                tar --exclude=.env --exclude=*/.env -cf - . | ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xf - -C '!_REMOTE!'"
             )
             popd
         ) else (
@@ -628,7 +630,7 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
     if !ERRORLEVEL! equ 0 (
         echo  [OK]  Copied: pair %%i
     ) else (
-        echo  [FAILED] scp failed for pair %%i with code !ERRORLEVEL!
+        echo  [FAILED] Copy failed for pair %%i with code !ERRORLEVEL!
         exit /b 1
     )
     echo.
