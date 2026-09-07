@@ -21,6 +21,7 @@ Small Windows CMD, PowerShell, and bash helpers for common local development tas
   - [Merges one Git branch into another and pushes the result.](#merges-one-git-branch-into-another-and-pushes-the-result)
   - [Runs a Git command across all matching subfolders.](#runs-a-git-command-across-all-matching-subfolders)
 - [Markdown Utilities](#markdown-utilities)
+  - [Converts Markdown to HTML or Jupyter Notebook without external dependencies.](#converts-markdown-to-html-or-jupyter-notebook-without-external-dependencies)
   - [Creates or updates TOC in MD (Markdown) files from the command prompt.](#creates-or-updates-toc-in-md-markdown-files-from-the-command-prompt)
   - [Creates or updates TOC in MD (Markdown) files with PowerShell.](#creates-or-updates-toc-in-md-markdown-files-with-powershell)
   - [Creates or updates TOC in MD (Markdown) files with bash (Android / Linux).](#creates-or-updates-toc-in-md-markdown-files-with-bash-android-linux)
@@ -556,6 +557,74 @@ git-run-allfolders.cmd "git -C %%path_to_git_folder%% pull" C:\work .git
 
 
 # Markdown Utilities
+
+## Converts Markdown to HTML or Jupyter Notebook without external dependencies.
+
+Files: `md-converter.cmd`, `md-converter.ps1`
+
+Windows CMD wrapper around the dependency-free PowerShell Markdown converter.
+Creates a standalone HTML page with the built-in responsive design and interactive heading tree, or a Jupyter Notebook using PowerShell's built-in JSON support.
+The HTML output includes light, dark, and automatic themes, H1-H6 navigation, collapsible TOC branches, active-heading tracking, collapsible code blocks, line counts, and copy buttons.
+
+Dependencies:
+- Windows PowerShell 5.1 or PowerShell 7+.
+- The sibling `md-converter.ps1` implementation when using `md-converter.cmd`.
+- No third-party modules or external conversion programs are required.
+
+General form:
+
+```bat
+:: Windows CMD / BAT
+md-converter.cmd [INPUT.md] [PowerShell options]
+```
+
+Parameters:
+- No arguments: Show usage and example commands without writing files.
+- `INPUT.md`: Required for conversion. Input Markdown file, passed positionally by the CMD wrapper.
+- `-Format html,ipynb`: Optional. One or more output formats. Default is `html`; `notebook` and `jupyter` are aliases for `ipynb`.
+- `-OutputFile <path>`: Optional. Exact output path; valid with one format only.
+- `-OutputDirectory <path>`: Optional. Directory for generated output filenames.
+- `-CodeLanguages <names>`: Optional. Fenced-code languages converted to notebook code cells. Defaults to `python`, `py`.
+- `-HtmlTheme light|dark|auto`: Optional. HTML theme. Default is `light`.
+- `-HtmlTitle <title>`: Optional. Override the generated HTML title.
+- `-HtmlCss <path>`: Optional. Append a UTF-8 CSS file to the built-in stylesheet.
+- `-HtmlCodeCollapseLines <number>`: Optional. Collapse longer code blocks. Default is `5`; use `0` to disable.
+- `-HtmlNoToc`: Optional. Omit the HTML heading tree.
+- `-NoStandalone`: Optional. Generate an HTML fragment instead of a complete page.
+- `-Force`: Optional. Explicitly allow an existing output file to be overwritten.
+- `-ListFormats`: Optional. List supported formats and exit.
+- `-Help`: Optional. Show usage and exit.
+
+Destructive behavior:
+- The input file is never modified.
+- Existing output files are rejected by default and are overwritten only when `-Force` is supplied.
+
+Examples:
+
+```bat
+:: Windows CMD / BAT — show help without writing files
+md-converter.cmd
+```
+
+```bat
+:: Windows CMD / BAT — create README.html
+md-converter.cmd README.md
+```
+
+```bat
+:: Windows CMD / BAT — create HTML and IPYNB files in dist
+md-converter.cmd README.md -Format html,ipynb -OutputDirectory dist
+```
+
+```bat
+:: Windows CMD / BAT — replace an existing HTML output explicitly
+md-converter.cmd README.md -Format html -OutputFile export\README.html -Force
+```
+
+Known limitations:
+- HTML conversion implements a practical Markdown subset rather than the complete CommonMark specification.
+- Nested lists, tables, footnotes, raw HTML, and complex inline nesting may not render as expected.
+- PDF, DOCX, EPUB, RST, ODT, and LaTeX are not supported because they require an external document conversion engine.
 
 ## Creates or updates TOC in MD (Markdown) files from the command prompt.
 
