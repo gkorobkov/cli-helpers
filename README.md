@@ -334,7 +334,7 @@ ssh-copy-remote.cmd --user=me --server=myhost --local_dir=C:\proj --remote_dir=/
 
 ```bat
 :: Windows CMD / BAT — check two folder pairs without copying
-ssh-copy-remote.cmd --user=gkuser01 --server=gkorobkov.ru --from=./k3s/ --to=/opt/k3s --from=./Headlamp/ --to=/opt/headlamp
+ssh-copy-remote.cmd --user=me --server=myhost --from=./k3s/ --to=/opt/k3s --from=./Headlamp/ --to=/opt/headlamp
 ```
 
 ```bash
