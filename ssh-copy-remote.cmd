@@ -44,8 +44,17 @@ REM       --from=path --to=path  local->remote pair (repeat for multiple)
 REM       --local_path=path --remote_path=path  (legacy single pair)
 REM       --deploy_hint=cmd    (optional) shown after copy
 REM  Common:
+REM       --help, -h, /?       show all parameters and examples; no connection needed
 REM       --copy               run copy (default: check only)
 REM       --check              check only
+REM       --compare            checksum comparison only; requires local and remote rsync
+REM       --remote_full_sync_delete   copy and delete remote-only entries without prompting
+REM  Example: ssh-copy-remote.cmd --profile=project --remote_full_sync_delete
+REM  Full sync requires directory pairs and rsync; excluded files are protected.
+REM  Example: ssh-copy-remote.cmd --profile=project --compare
+REM  Compare supports files and folders; no copy, mkdir, chown or deletion is performed.
+REM  Windows rsync uses its sibling ssh.exe when present for compatible pipe handling.
+REM  That SSH receives Windows user .ssh config, known_hosts and default key paths.
 REM  Examples:
 REM    ssh-copy-remote.cmd
 REM    ssh-copy-remote.cmd --copy
@@ -86,6 +95,9 @@ set "RSYNC_FLAGS=-avz"
 set "RSYNC_EXCL=--exclude=.env"
 
 set "CMD=check"
+set "EXPLICIT_MODE=0"
+set "REMOTE_FULL_SYNC=0"
+set "SYNC_FLAGS="
 set "PROFILE="
 set "CFG="
 set "RUSER="
@@ -105,6 +117,9 @@ REM Parse arguments
 REM =============================================================
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="--help" goto :help
+if /i "%~1"=="-h" goto :help
+if "%~1"=="/?" goto :help
 set "ARG=%~1"
 set "ARG2=%~2"
 set "ARG_VALUE_INLINE=0"
@@ -133,18 +148,19 @@ if /i "%ARG%"=="--remote_dir"   goto :arg_remote_path
 if /i "%ARG%"=="--deploy_hint"  goto :arg_deploy_hint
 if /i "%ARG%"=="--from"         goto :arg_from
 if /i "%ARG%"=="--to"           goto :arg_to
-if /i "%ARG%"=="--copy"         ( set "CMD=copy" & shift & goto :parse_args )
-if /i "%ARG%"=="--check"        ( set "CMD=check" & shift & goto :parse_args )
-if /i "%ARG%"=="--list"         ( set "CMD=list" & shift & goto :parse_args )
+if /i "%ARG%"=="--copy"         ( set "EXPLICIT_MODE=1" & set "CMD=copy" & shift & goto :parse_args )
+if /i "%ARG%"=="--check"        ( set "EXPLICIT_MODE=1" & set "CMD=check" & shift & goto :parse_args )
+if /i "%ARG%"=="--compare"      ( set "EXPLICIT_MODE=1" & set "CMD=compare" & shift & goto :parse_args )
+if /i "%ARG%"=="--remote_full_sync_delete" ( set "REMOTE_FULL_SYNC=1" & set "SYNC_FLAGS=--delete" & shift & goto :parse_args )
+if /i "%ARG%"=="--list"         ( set "EXPLICIT_MODE=1" & set "CMD=list" & shift & goto :parse_args )
 REM --- Legacy "/copy" form ---
-if /i "%ARG%"=="/copy"          ( set "CMD=copy" & shift & goto :parse_args )
-if /i "%ARG%"=="/check"         ( set "CMD=check" & shift & goto :parse_args )
-if /i "%ARG%"=="/list"          ( set "CMD=list" & shift & goto :parse_args )
+if /i "%ARG%"=="/copy"          ( set "EXPLICIT_MODE=1" & set "CMD=copy" & shift & goto :parse_args )
+if /i "%ARG%"=="/check"         ( set "EXPLICIT_MODE=1" & set "CMD=check" & shift & goto :parse_args )
+if /i "%ARG%"=="/list"          ( set "EXPLICIT_MODE=1" & set "CMD=list" & shift & goto :parse_args )
 
 echo.
 echo  [ERROR]  Unknown argument: %ARG%
-echo  Valid:   --config  --profile  --user  --server  --ssh_key  --local_path  --local_dir  --remote_path  --remote_dir  --deploy_hint  --from  --to  --check  --copy  --list
-echo.
+call :help
 exit /b 1
 
 :arg_config
@@ -277,6 +293,7 @@ if "!ARG_VALUE_INLINE!"=="0" shift
 goto :parse_args
 
 :args_done
+if "%REMOTE_FULL_SYNC%"=="1" if "%EXPLICIT_MODE%"=="0" set "CMD=copy"
 if defined _PENDING_FROM (
     echo.
     echo  [ERROR]  --from= without following --to= for path: %_PENDING_FROM%
@@ -315,9 +332,7 @@ if "%CFG%"=="" (
 if "%CFG%"=="" (
     echo.
     echo  [ERROR]  No config file found. Use inline params or create *.remote.ini
-    echo  Config:  --config=file.ini  or place *.remote.ini in current folder
-    echo  Inline:  --user=name --server=host --from=local --to=remote [--from=local --to=remote ...]
-    echo.
+    call :help
     exit /b 1
 )
 if not exist "%CFG%" (
@@ -501,18 +516,47 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
                     echo  [INFO]   No root .gitignore found: !_LOCAL!\.gitignore
                 )
                 echo  [INFO]   Folder copy excludes every .env file.
+                if "!PAIR_%%i_HAS_GITIGNORE!"=="1" (
+                    echo  Copy command ^(from !_LOCAL!^): tar --exclude=.env --exclude=*/.env --exclude-from=.gitignore -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
+                ) else (
+                    echo  Copy command ^(from !_LOCAL!^): tar --exclude=.env --exclude=*/.env -cf - . ^| ssh !SSH_KEY_ARG! !SSH_STREAM_OPTS! "!RUSER!@!SERVER!" "tar -xvf - -C '!_REMOTE!'"
+                )
             )
         ) else (
+            echo  [OK]     rsync found - folder copy will use rsync.
             set "PAIR_%%i_COPY_METHOD=rsync"
+            call :prepare_rsync_ssh
+            echo  Working directory for copy: !_LOCAL!
+            echo  Copy command: rsync %RSYNC_FLAGS% !SYNC_FLAGS! %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "./" "!RUSER!@!SERVER!:!_REMOTE!/"
         )
     ) else if exist "!_LOCAL!" (
         echo  [OK]     Local file found: !_LOCAL!
+        echo  Copy command: scp %SCP_OPTS% !SSH_BASE_OPTS! !SSH_KEY_ARG! "!_LOCAL!" "!RUSER!@!SERVER!:!_REMOTE!"
     ) else (
         echo  [ERROR]  Local path NOT FOUND: !_LOCAL!
         set "ALL_OK=0"
     )
 
+    if "!REMOTE_FULL_SYNC!"=="1" (
+        if not "!PAIR_%%i_IS_DIR!"=="1" (
+            echo  [ERROR] --remote_full_sync_delete requires directory pairs, not individual files.
+            set "ALL_OK=0"
+        )
+        if not "!PAIR_%%i_COPY_METHOD!"=="rsync" (
+            echo  [ERROR] --remote_full_sync_delete requires rsync; fallback copying is disabled.
+            set "ALL_OK=0"
+        )
+    )
+
     echo  Checking SSH to !RUSER!@!SERVER!...
+    if "!REMOTE_FULL_SYNC!"=="1" (
+        echo  Command: ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "command -v rsync"
+        ssh !SSH_KEY_ARG! !SSH_RUN_OPTS! "!RUSER!@!SERVER!" "command -v rsync"
+        if errorlevel 1 (
+            echo  [ERROR] Remote rsync is required for full sync.
+            set "ALL_OK=0"
+        )
+    )
     set "SSH_RESULT="
     set "_SSH_TMP=%TEMP%\ssh_copy_remote_!RANDOM!_!RANDOM!_%%i.tmp"
     if "!PAIR_%%i_IS_DIR!"=="1" (
@@ -548,6 +592,8 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
 echo.
 if "%ALL_OK%"=="0" ( echo  Fix errors above before copying. & echo. & exit /b 1 )
 
+if /i "%CMD%"=="compare" goto :do_compare
+
 if /i "%CMD%"=="check" (
     echo  All checks passed. Run with --copy to start copying.
     echo.
@@ -556,6 +602,10 @@ if /i "%CMD%"=="check" (
 
 REM =============================================================
 :do_copy
+if "%REMOTE_FULL_SYNC%"=="1" (
+    echo  WARNING: Full sync deletes remote-only entries in ALL destination folders listed above.
+    echo  Excluded files remain protected. Deletion was explicitly enabled by --remote_full_sync_delete.
+)
 echo  Starting copy...
 echo.
 
@@ -598,11 +648,22 @@ for /l %%i in (0,1,%_PAIR_LAST%) do (
             )
             popd
         ) else (
-            set "RSYNC_E=ssh !SSH_BASE_OPTS!"
-            if defined SSH_KEY set "RSYNC_E=ssh !SSH_BASE_OPTS! -i !SSH_KEY!"
-            echo  Command: rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" "!RUSER!@!SERVER!:!_REMOTE!/"
+            call :prepare_rsync_ssh
+            pushd "!_LOCAL!"
+            if errorlevel 1 (
+                echo  [FAILED] Could not enter local folder: !_LOCAL!
+                exit /b 1
+            )
+            echo  Working directory: !_LOCAL!
+            echo  Command: rsync %RSYNC_FLAGS% !SYNC_FLAGS! %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "./" "!RUSER!@!SERVER!:!_REMOTE!/"
             echo.
-            rsync %RSYNC_FLAGS% %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "!_LOCAL!/" "!RUSER!@!SERVER!:!_REMOTE!/"
+            rsync %RSYNC_FLAGS% !SYNC_FLAGS! %RSYNC_EXCL% "--filter=:- .gitignore" -e "!RSYNC_E!" "./" "!RUSER!@!SERVER!:!_REMOTE!/"
+            set "COPY_RESULT=!ERRORLEVEL!"
+            popd
+            if !COPY_RESULT! neq 0 (
+                echo  [FAILED] Copy failed for pair %%i with code !COPY_RESULT!
+                exit /b !COPY_RESULT!
+            )
         )
     ) else (
         rem --- File mode ---
@@ -640,6 +701,76 @@ echo  All pairs copied successfully.
 if defined DEPLOY_HINT ( echo. & echo  On server: & echo    %DEPLOY_HINT% )
 echo.
 goto :eof
+
+REM =============================================================
+:do_compare
+echo  Comparing by checksum only. No remote files or permissions will be changed.
+echo  Rsync dry-run messages such as 'created directory' describe planned changes only.
+echo [ Running: where rsync ]
+where rsync >nul 2>&1
+if errorlevel 1 (
+    echo  [ERROR] --compare requires rsync locally and on the remote server; scp and tar cannot compare.
+    exit /b 1
+)
+echo  [OK] rsync found. Comparison command: rsync --recursive --checksum --dry-run --itemize-changes
+call :prepare_rsync_ssh
+set /a _PAIR_LAST=PAIR_COUNT-1
+for /l %%i in (0,1,!_PAIR_LAST!) do (
+    set "_LOCAL=!PAIR_%%i_LOCAL!"
+    set "_REMOTE=!PAIR_%%i_REMOTE!"
+    set "COMPARE_SOURCE=!_LOCAL!"
+    set "COMPARE_DIR="
+    set "COMPARE_TARGET=!_REMOTE!"
+    set "COMPARE_FILTERS="
+    if exist "!_LOCAL!\" (
+        set "COMPARE_SOURCE=./"
+        set "COMPARE_DIR=!_LOCAL!"
+        set "COMPARE_TARGET=!_REMOTE!/"
+        set "COMPARE_FILTERS=--delete %RSYNC_EXCL% "--filter=:- .gitignore""
+    ) else if not exist "!_LOCAL!" (
+        echo  [ERROR] Local path NOT FOUND: !_LOCAL!
+        exit /b 1
+    ) else (
+        for %%F in ("!_LOCAL!") do (
+            set "COMPARE_DIR=%%~dpF"
+            set "COMPARE_SOURCE=./%%~nxF"
+        )
+    )
+    echo  --- Pair %%i: !_LOCAL! -^> !_REMOTE!
+    pushd "!COMPARE_DIR!"
+    if errorlevel 1 exit /b 1
+    echo  Working directory: !COMPARE_DIR!
+    echo  Command: rsync --recursive --checksum --dry-run --itemize-changes !COMPARE_FILTERS! -e "!RSYNC_E!" "!COMPARE_SOURCE!" "!RUSER!@!SERVER!:!COMPARE_TARGET!"
+    rsync --recursive --checksum --dry-run --itemize-changes !COMPARE_FILTERS! -e "!RSYNC_E!" "!COMPARE_SOURCE!" "!RUSER!@!SERVER!:!COMPARE_TARGET!"
+    set "COMPARE_RESULT=!ERRORLEVEL!"
+    popd
+    if !COMPARE_RESULT! neq 0 exit /b !COMPARE_RESULT!
+)
+echo  Comparison completed. Listed changes are a preview only; *deleting means remote-only.
+exit /b 0
+
+REM Resolve SSH from the rsync distribution, retaining the Windows user's SSH files.
+:prepare_rsync_ssh
+set "RSYNC_EXE="
+echo [ Running: where rsync.exe ]
+for /f "delims=" %%R in ('where rsync.exe 2^>nul') do if not defined RSYNC_EXE set "RSYNC_EXE=%%R"
+set "RSYNC_SSH=ssh"
+set "RSYNC_USER_OPTS="
+if defined RSYNC_EXE for %%R in ("!RSYNC_EXE!") do if exist "%%~dpRssh.exe" (
+    set "RSYNC_SSH=%%~dpRssh.exe"
+    set "RSYNC_SSH=!RSYNC_SSH:\=/!"
+    set "_SSH_HOME=!USERPROFILE:\=/!/.ssh"
+    if exist "!USERPROFILE!\.ssh\config" set "RSYNC_USER_OPTS=-F '!_SSH_HOME!/config'"
+    if exist "!USERPROFILE!\.ssh\known_hosts" set "RSYNC_USER_OPTS=!RSYNC_USER_OPTS! -o 'UserKnownHostsFile=!_SSH_HOME!/known_hosts'"
+    if not defined SSH_KEY (
+        for %%K in (id_ed25519 id_ecdsa id_rsa) do if exist "!USERPROFILE!\.ssh\%%K" set "RSYNC_USER_OPTS=!RSYNC_USER_OPTS! -i '!_SSH_HOME!/%%K'"
+    )
+)
+set "RSYNC_E='!RSYNC_SSH!' !SSH_BASE_OPTS! !RSYNC_USER_OPTS!"
+if defined SSH_KEY set "RSYNC_E=!RSYNC_E! -i '!SSH_KEY:\=/!'"
+echo  [INFO] rsync executable: !RSYNC_EXE!
+echo  [INFO] rsync SSH executable: !RSYNC_SSH!
+exit /b 0
 
 REM =============================================================
 :show_list
@@ -731,3 +862,47 @@ REM    SCP_OPTS=-p             preserve timestamps and permissions
 REM    SCP_OPTS=-C -p          compress and preserve timestamps
 REM    SCP_OPTS=-l 5000        limit bandwidth to ~5 Mbit/s
 REM    SCP_OPTS=-P 2222        use non-default SSH port
+
+:help
+echo.
+echo  Copy files or folders to a remote server via SSH.
+echo  Usage: ssh-copy-remote.cmd [--config=file.ini] [--profile=name] [mode]
+echo         ssh-copy-remote.cmd --user=name --server=host --from=local --to=remote [mode]
+echo.
+echo  Config options:
+echo    --config=file.ini       Config file; otherwise first *.remote.ini, then *.local.ini
+echo                            in the current folder. Profile defaults to default_profile.
+echo    --profile=name          Select a config profile
+echo    --list                  List config profiles and exit
+echo.
+echo  Inline options ^(no config needed; requires user, server and at least one pair^):
+echo    --user=name             SSH user
+echo    --server=host           SSH server
+echo    --ssh_key=path          Identity file; otherwise use SSH defaults
+echo    --from=local --to=remote Local-to-remote pair; repeat for multiple files/folders
+echo    --local_path=path       Legacy single local path; alias: --local_dir
+echo    --remote_path=path      Legacy single remote path; alias: --remote_dir
+echo    --deploy_hint=command   Display a command after copying; does not execute it
+echo.
+echo  Modes and help:
+echo    --check                 Default: check paths and SSH access without copying
+echo    --copy                  Copy; may overwrite matching remote files
+echo    --compare               Checksum dry run; requires local and remote rsync
+echo    --remote_full_sync_delete
+echo                            Copy and DELETE remote-only entries without prompting
+echo                            Requires directory pairs and rsync; exclusions protected
+echo                            Selects copy unless another mode is explicitly supplied
+echo    --help, -h, /?          Show this help and exit successfully
+echo    /check, /copy, /list    Legacy aliases for --check, --copy, --list
+echo.
+echo  Values accept --name=value or --name value.
+echo  Examples ^(quote the entire option when a value contains spaces^):
+echo    ssh-copy-remote.cmd --config=deploy.ini --profile=project --check
+echo    ssh-copy-remote.cmd --user=me --server=host --from=C:\app --to=/home/me/app --copy
+echo    ssh-copy-remote.cmd --user=me --server=host "--from=C:\my app" --to=/home/me/app --compare
+echo    ssh-copy-remote.cmd --profile=project --list
+echo.
+echo  Dependencies: OpenSSH ^(ssh/scp^), tar; rsync optional for folder copy.
+echo  Folder copy uses rsync or falls back to tar. Sync excludes .env and uses .gitignore.
+echo.
+exit /b 0

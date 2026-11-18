@@ -226,6 +226,13 @@ locks.cmd --kill
 
 Files: `ssh-copy-remote.cmd`, `ssh-copy-remote.sh`
 
+Run `ssh-copy-remote.cmd --help` or `./ssh-copy-remote.sh --help` for all
+parameters, defaults, aliases, dependencies, and examples. `-h` and `/?` also
+show help and return exit code 0 without requiring a config or SSH connection.
+When no config is found, or an unknown argument is passed, the helper prints
+the same help with the error and returns exit code 1. Running without arguments
+still checks the default config profile when a config is available.
+
 Dependencies:
 - Windows: OpenSSH Client (`ssh` and `scp`) and `tar`; `rsync` is optional for directory synchronization. Current Windows 10/11 installations include `tar`.
 - Linux/macOS: Bash, OpenSSH, and `realpath`, `sort`, and `tr`; `rsync` is optional.
@@ -278,9 +285,28 @@ Parameters:
 - `--remote_dir=path` / `--remote_path=path`: Inline mode. Remote destination path. Both aliases are accepted on Windows and Linux.
 - `--from=path --to=path`: Inline local-to-remote pair. Repeat the pair to copy multiple files or folders in one run.
 - `--deploy_hint=cmd`: Optional. Command shown after copy as a reminder.
-- `--check`: Optional. Verify connectivity without copying (default mode).
+- `--check`: Optional. Verify connectivity without copying (default mode). Prints the selected copy command for each file or folder, including whether rsync was found.
+- `--remote_full_sync_delete`: Full synchronization mode for directory pairs. Used alone, starts copying with rsync `--delete`: remote-only entries within each destination are deleted, while rsync exclusions remain in effect. Requires local and remote rsync; file pairs and fallback copying are rejected. After checks, proceeds without an interactive confirmation. This option explicitly authorizes deletion; preview changes with `--compare` first. An explicit `--check` or `--compare` keeps the operation read-only regardless of argument order. It can also be combined with `--copy`.
+- `--compare`: Optional. Compare one file or a complete directory tree by checksum using `rsync --recursive --checksum --dry-run --itemize-changes`. Requires rsync locally and on the remote server. Uses the same profile or `--from`/`--to` pairs as copying. Folder comparison applies `.env` and `.gitignore` exclusions and reports remote-only entries with `*deleting`; dry run prevents any deletion. It never creates folders or changes permissions. Reading checksums can be slow. Exit code 0 means comparison succeeded, including when differences exist; errors return non-zero. Missing remote parents or insufficient read access can cause rsync errors.
 - `--copy`: Optional. Run the actual `scp` copy after checks pass.
 - `--list`: Optional. Print all available profiles and exit.
+
+Comparison examples (use `./ssh-copy-remote.sh` instead on Linux):
+
+`--compare` runs the same local path, SSH key, and SSH connectivity/path checks as `--check`, then performs the checksum dry run. A failed check stops comparison. It keeps support for individual files and whole folders. Remote-only entries are reported even without `--remote_full_sync_delete`; actual deletion requires `--remote_full_sync_delete`.
+
+```bat
+ssh-copy-remote.cmd --profile=project --compare
+ssh-copy-remote.cmd --user=me --server=myhost --from=C:\proj --to=/home/me/proj --compare
+ssh-copy-remote.cmd --user=me --server=myhost --from=C:\proj\app.json --to=/home/me/proj/app.json --compare
+ssh-copy-remote.cmd --profile=project --remote_full_sync_delete
+```
+
+The local, Git-ignored launcher uses `run-ssh-copy-remote.cmd [mode] [user] [server] [ssh-key]`. Its first argument is forwarded unchanged as a single mode argument; the helper validates it. Examples: `run-ssh-copy-remote.cmd --compare` for checks and a preview, `run-ssh-copy-remote.cmd --remote_full_sync_delete` for full synchronization without prompting, or `run-ssh-copy-remote.cmd --check vmuser example.test` to override the connection. With no arguments, it uses the configured `RUN_MODE`, paths, and connection settings.
+
+On Windows, rsync uses the `ssh.exe` beside the selected `rsync.exe` when available, avoiding pipe incompatibilities between MSYS/Cygwin rsync and Windows OpenSSH. The helper prints both executable paths and supplies existing `%USERPROFILE%\.ssh\config`, `known_hosts`, and default identity files to that SSH. An explicit `--ssh_key` replaces default identity selection. The companion SSH may not support the Windows SSH agent; use a compatible agent or an explicit key. Host verification remains enabled.
+
+Windows folder copy and comparison run rsync from the local source directory with `./` as the source. This avoids interpreting a Windows drive prefix such as `C:` as a remote host. The helper restores the working directory afterward and propagates rsync errors.
 
 Limitations:
 - The remote host must provide a POSIX-compatible shell plus `dirname`, `mkdir`, `chown`, and `sudo` when remote creation or permission repair is needed.
